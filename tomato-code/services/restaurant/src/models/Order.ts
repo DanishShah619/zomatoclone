@@ -148,4 +148,9 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
+OrderSchema.index({ userId: 1, createdAt: -1 });
+OrderSchema.index({ restaurantId: 1, paymentStatus: 1, createdAt: -1 });
+OrderSchema.index({ riderId: 1, status: 1 });
+OrderSchema.index({ paymentStatus: 1, expiresAt: 1 });
+
 export default mongoose.model<IOrder>("Order", OrderSchema);

@@ -75,5 +75,6 @@ const schema = new Schema<IRider>(
 );
 
 schema.index({ location: "2dsphere" });
+schema.index({ isAvailble: 1, isVerified: 1 });
 
 export const Rider = mongoose.model<IRider>("Rider", schema);
