@@ -7,51 +7,32 @@ import uploadRoutes from "./routes/cloudinary.js";
 import paymentRoutes from "./routes/payment.js";
 import { connectRabbitMQ } from "./config/rabbitmq.js";
 import { stripeWebhook } from "./controllers/payment.js";
-
 dotenv.config();
-
 await connectRabbitMQ();
-
 const app = express();
-
 const corsOptions = process.env.FRONTEND_URL
-  ? {
-      origin: process.env.FRONTEND_URL.split(",").map((origin) =>
-        origin.trim()
-      ),
-      credentials: true,
+    ? {
+        origin: process.env.FRONTEND_URL.split(",").map((origin) => origin.trim()),
+        credentials: true,
     }
-  : {};
-
+    : {};
 app.use(cors(corsOptions));
 app.use(compression());
-
-app.post(
-  "/api/payment/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  stripeWebhook
-);
-
+app.post("/api/payment/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
 const { CLOUD_NAME, CLOUD_API_KEY, CLOUD_SECRET_KEY } = process.env;
-
 if (!CLOUD_NAME || !CLOUD_API_KEY || !CLOUD_SECRET_KEY) {
-  throw new Error("Missing Cloudinary environment variables");
+    throw new Error("Missing Cloudinary environment variables");
 }
-
 cloudinary.v2.config({
-  cloud_name: CLOUD_NAME,
-  api_key: CLOUD_API_KEY,
-  api_secret: CLOUD_SECRET_KEY,
+    cloud_name: CLOUD_NAME,
+    api_key: CLOUD_API_KEY,
+    api_secret: CLOUD_SECRET_KEY,
 });
-
 app.use("/api", uploadRoutes);
 app.use("/api/payment", paymentRoutes);
-
 const PORT = process.env.PORT || 5002;
-
 app.listen(PORT, () => {
-  console.log(`Utils service is running on port ${PORT}`);
+    console.log(`Utils service is running on port ${PORT}`);
 });

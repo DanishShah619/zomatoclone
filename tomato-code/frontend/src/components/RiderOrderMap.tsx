@@ -5,7 +5,7 @@ import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine";
 import axios from "axios";
-import { realtimeService } from "../main";
+import { riderService } from "../main";
 
 declare module "leaflet" {
   namespace Routing {
@@ -67,18 +67,6 @@ const RiderOrderMap = ({ order }: Props) => {
     null
   );
 
-  if (
-    order.deliveryAddress.latitude == null ||
-    order.deliveryAddress.longitude == null
-  ) {
-    return null;
-  }
-
-  const deliveryLocation: [number, number] = [
-    order.deliveryAddress.latitude,
-    order.deliveryAddress.longitude,
-  ];
-
   useEffect(() => {
     const fetchLocation = () => {
       navigator.geolocation.getCurrentPosition(
@@ -88,16 +76,15 @@ const RiderOrderMap = ({ order }: Props) => {
 
           setRiderLocation([latitude, longitude]);
 
-          axios.post(
-            `${realtimeService}/api/v1/internal/emit`,
+          axios.patch(
+            `${riderService}/api/rider/location`,
             {
-              event: "rider:location",
-              room: `user:${order.userId}`,
-              payload: { latitude, longitude },
+              latitude,
+              longitude,
             },
             {
               headers: {
-                "x-internal-key": import.meta.env.VITE_INTERNAL_SERVICE_KEY,
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
               },
             }
           );
@@ -115,7 +102,19 @@ const RiderOrderMap = ({ order }: Props) => {
     const interval = setInterval(fetchLocation, 10000);
 
     return () => clearInterval(interval);
-  }, [order.userId]);
+  }, []);
+
+  if (
+    order.deliveryAddress.latitude == null ||
+    order.deliveryAddress.longitude == null
+  ) {
+    return null;
+  }
+
+  const deliveryLocation: [number, number] = [
+    order.deliveryAddress.latitude,
+    order.deliveryAddress.longitude,
+  ];
 
   if (!riderLocation) return null;
   return (

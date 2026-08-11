@@ -6,7 +6,7 @@ import Order from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import { publishEvent } from "../config/order.publisher.js";
 import mongoose from "mongoose";
-const PAYMENT_METHODS = ["razorpay", "stripe"];
+const PAYMENT_METHODS = ["stripe"];
 const isValidObjectId = (value) => typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
 const isValidPaymentMethod = (value) => typeof value === "string" &&
     PAYMENT_METHODS.includes(value);
@@ -143,10 +143,18 @@ export const fetchOrderForPayment = TryCatch(async (req, res) => {
             message: "Order not found",
         });
     }
-    if (order.paymentStatus !== "pending") {
-        return res.status(400).json({
-            message: "Order already paid",
-        });
+    const userId = req.headers["x-user-id"];
+    if (typeof userId === "string") {
+        if (order.userId !== userId) {
+            return res.status(403).json({
+                message: "You are not allowed to pay for this order",
+            });
+        }
+        if (order.paymentStatus !== "pending") {
+            return res.status(400).json({
+                message: "Order already paid",
+            });
+        }
     }
     res.json({
         orderId: order._id,

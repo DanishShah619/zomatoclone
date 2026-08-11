@@ -9,7 +9,7 @@ import Restaurant, { IRestaurant } from "../models/Restaurant.js";
 import { publishEvent } from "../config/order.publisher.js";
 import mongoose from "mongoose";
 
-const PAYMENT_METHODS = ["razorpay", "stripe"] as const;
+const PAYMENT_METHODS = ["stripe"] as const;
 
 const isValidObjectId = (value: unknown): value is string =>
   typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
@@ -200,10 +200,20 @@ export const fetchOrderForPayment = TryCatch(async (req, res) => {
     });
   }
 
-  if (order.paymentStatus !== "pending") {
-    return res.status(400).json({
-      message: "Order already paid",
-    });
+  const userId = req.headers["x-user-id"];
+
+  if (typeof userId === "string") {
+    if (order.userId !== userId) {
+      return res.status(403).json({
+        message: "You are not allowed to pay for this order",
+      });
+    }
+
+    if (order.paymentStatus !== "pending") {
+      return res.status(400).json({
+        message: "Order already paid",
+      });
+    }
   }
 
   res.json({

@@ -222,3 +222,67 @@ export const updateOrderStatus = TryCatch(async (req, res) => {
         });
     }
 });
+export const updateRiderLocation = TryCatch(async (req, res) => {
+    const user = req.user;
+    if (!user) {
+        return res.status(401).json({
+            message: "Please Login",
+        });
+    }
+    if (user.role !== "rider") {
+        return res.status(403).json({
+            message: "Only riders can update rider location",
+        });
+    }
+    const latitude = Number(req.body.latitude);
+    const longitude = Number(req.body.longitude);
+    if (!Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+        return res.status(400).json({
+            message: "Valid latitude and longitude are required",
+        });
+    }
+    const rider = await Rider.findOne({
+        userId: user._id,
+        isVerified: true,
+    });
+    if (!rider) {
+        return res.status(404).json({
+            message: "Verified rider profile not found",
+        });
+    }
+    rider.location = {
+        type: "Point",
+        coordinates: [longitude, latitude],
+    };
+    rider.lastActiveAt = new Date();
+    await rider.save();
+    try {
+        const { data: order } = await axios.get(`${process.env.RESTAURANT_SERVICE}/api/order/current/rider?riderId=${rider._id}`, {
+            headers: {
+                "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            },
+        });
+        await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
+            event: "rider:location",
+            room: `user:${order.userId}`,
+            payload: { latitude, longitude },
+        }, {
+            headers: {
+                "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            },
+        });
+    }
+    catch (error) {
+        if (error.response?.status !== 404) {
+            throw error;
+        }
+    }
+    res.json({
+        message: "Rider location updated",
+    });
+});

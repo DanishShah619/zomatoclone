@@ -3,7 +3,7 @@ import { getChannel } from "./rabbitmq.js";
 export const publishPaymentSuccess = async (payload: {
   orderId: string;
   paymentId: string;
-  provider: "razorpay" | "stripe";
+  provider: "stripe";
 }) => {
   const channel = getChannel();
 

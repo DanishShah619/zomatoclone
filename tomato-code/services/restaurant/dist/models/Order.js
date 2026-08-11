@@ -70,7 +70,7 @@ const OrderSchema = new Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ["razorpay", "stripe"],
+        enum: ["stripe"],
         required: true,
     },
     paymentStatus: {

@@ -1,98 +1,61 @@
 import { Request, Response } from "express";
 import axios from "axios";
-import { razorpay } from "../config/razorpay.js";
-import { verifyRazorpaySignature } from "../config/verifyRazorpay.js";
+import Stripe from "stripe";
+import { AuthenticatedRequest } from "../middlewares/isAuth.js";
 import { publishPaymentSuccess } from "../config/payment.producer.js";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const STRIPE_CURRENCY = "inr";
 
 const isValidObjectId = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
 
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
+const getAmountInSmallestUnit = (amount: number) => Math.round(amount * 100);
 
-export const createRazorpayOrder = async (req: Request, res: Response) => {
-  const { orderId } = req.body;
+const getStripePaymentId = (session: Stripe.Checkout.Session) => {
+  const paymentIntent = session.payment_intent;
 
-  if (!isValidObjectId(orderId)) {
-    return res.status(400).json({
-      message: "Valid order id is required",
-    });
+  if (typeof paymentIntent === "string") {
+    return paymentIntent;
+  }
+
+  return session.id;
+};
+
+const fetchOrderForPayment = async (orderId: string, userId?: string) => {
+  const headers: Record<string, string> = {
+    "x-internal-key": process.env.INTERNAL_SERVICE_KEY ?? "",
+  };
+
+  if (userId) {
+    headers["x-user-id"] = userId;
   }
 
   const { data } = await axios.get(
     `${process.env.RESTAURANT_SERVICE}/api/order/payment/${orderId}`,
-    {
-      headers: {
-        "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
-      },
-    }
+    { headers }
   );
 
-  const razorpayOrder = await razorpay.orders.create({
-    amount: data.amount * 100,
-    currency: "INR",
-    receipt: orderId,
-  });
-
-  res.json({
-    razorpayOrderId: razorpayOrder.id,
-    key: process.env.RAZORPAY_KEY_ID,
-  });
+  return data as {
+    orderId: string;
+    amount: number;
+    currency: string;
+  };
 };
 
-export const verifyRazorpayPayment = async (req: Request, res: Response) => {
-  const {
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-    orderId,
-  } = req.body;
-
-  if (
-    !isValidObjectId(orderId) ||
-    !isNonEmptyString(razorpay_order_id) ||
-    !isNonEmptyString(razorpay_payment_id) ||
-    !isNonEmptyString(razorpay_signature)
-  ) {
-    return res.status(400).json({
-      message: "Valid payment details are required",
-    });
-  }
-
-  const isValid = verifyRazorpaySignature(
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature
-  );
-
-  if (!isValid) {
-    return res.status(400).json({
-      message: "Payment verification failed",
-    });
-  }
-
-  await publishPaymentSuccess({
-    orderId,
-    paymentId: razorpay_payment_id,
-    provider: "razorpay",
-  });
-
-  res.json({
-    message: "Payment verified successfully",
-  });
-};
-
-import dotenv from "dotenv";
-
-dotenv.config();
-
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-export const payWithStripe = async (req: Request, res: Response) => {
+export const createStripeCheckoutSession = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
+    const userId = req.user?._id;
     const { orderId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
 
     if (!isValidObjectId(orderId)) {
       return res.status(400).json({
@@ -100,36 +63,29 @@ export const payWithStripe = async (req: Request, res: Response) => {
       });
     }
 
-    const { data } = await axios.get(
-      `${process.env.RESTAURANT_SERVICE}/api/order/payment/${orderId}`,
-      {
-        headers: {
-          "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
-        },
-      }
-    );
+    const order = await fetchOrderForPayment(orderId, userId);
+    const amount = getAmountInSmallestUnit(order.amount);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-
+      client_reference_id: orderId,
       line_items: [
         {
           price_data: {
-            currency: "inr",
+            currency: STRIPE_CURRENCY,
             product_data: {
               name: "Tomato food order",
             },
-            unit_amount: data.amount * 100,
+            unit_amount: amount,
           },
           quantity: 1,
         },
       ],
-
       metadata: {
         orderId,
+        userId,
       },
-
       success_url: `${process.env.FRONTEND_URL}/ordersuccess?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/checkout`,
     });
@@ -139,49 +95,93 @@ export const payWithStripe = async (req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({
-      message: "stripe payment failed",
+      message: "Stripe checkout session creation failed",
     });
   }
 };
 
-export const verifyStripe = async (req: Request, res: Response) => {
-  const { sessionId } = req.body;
+export const stripeWebhook = async (req: Request, res: Response) => {
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = req.headers["stripe-signature"];
 
-  if (!isNonEmptyString(sessionId)) {
-    return res.status(400).json({
-      message: "Valid session id is required",
+  if (!endpointSecret) {
+    return res.status(500).json({
+      message: "Stripe webhook secret is not configured",
     });
   }
 
-  try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (typeof signature !== "string") {
+    return res.status(400).json({
+      message: "Stripe signature is required",
+    });
+  }
 
-    if (!session) {
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      signature,
+      endpointSecret
+    );
+  } catch (error) {
+    return res.status(400).json({
+      message: "Invalid Stripe webhook signature",
+    });
+  }
+
+  if (
+    event.type !== "checkout.session.completed" &&
+    event.type !== "checkout.session.async_payment_succeeded"
+  ) {
+    return res.json({ received: true });
+  }
+
+  try {
+    const eventSession = event.data.object as Stripe.Checkout.Session;
+    const session = await stripe.checkout.sessions.retrieve(eventSession.id);
+
+    if (session.payment_status !== "paid") {
+      return res.json({ received: true });
+    }
+
+    if (session.mode !== "payment" || typeof session.amount_total !== "number") {
       return res.status(400).json({
-        message: "Payment verifcation failed",
+        message: "Stripe session is not a completed payment session",
       });
     }
 
     const orderId = session.metadata?.orderId;
 
-    if (!orderId) {
+    if (!isValidObjectId(orderId) || session.client_reference_id !== orderId) {
       return res.status(400).json({
-        message: "orderid not found in stripe session",
+        message: "Stripe session is missing a valid order id",
+      });
+    }
+
+    const order = await fetchOrderForPayment(orderId);
+    const expectedAmount = getAmountInSmallestUnit(order.amount);
+
+    if (
+      session.amount_total !== expectedAmount ||
+      session.currency !== STRIPE_CURRENCY ||
+      order.currency.toLowerCase() !== STRIPE_CURRENCY
+    ) {
+      return res.status(400).json({
+        message: "Stripe session amount or currency mismatch",
       });
     }
 
     await publishPaymentSuccess({
       orderId,
-      paymentId: sessionId,
+      paymentId: getStripePaymentId(session),
       provider: "stripe",
     });
 
-    res.json({
-      message: "payment verified successfully",
-    });
+    return res.json({ received: true });
   } catch (error) {
-    res.status(500).json({
-      message: "stripe payment failed",
+    return res.status(500).json({
+      message: "Stripe webhook processing failed",
     });
   }
 };
