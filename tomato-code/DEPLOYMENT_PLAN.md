@@ -20,6 +20,7 @@ Set these frontend environment variables in Vercel or Cloudflare Pages:
 VITE_API_BASE_URL=https://api.your-domain.com
 VITE_REALTIME_SERVICE_URL=https://api.your-domain.com
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_or_live_key
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 ```
 
 Then deploy the frontend.

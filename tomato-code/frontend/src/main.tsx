@@ -18,9 +18,15 @@ export const realtimeService =
 export const riderService = import.meta.env.VITE_RIDER_SERVICE_URL || apiBaseUrl;
 export const adminService = import.meta.env.VITE_ADMIN_SERVICE_URL || apiBaseUrl;
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+if (!googleClientId) {
+  throw new Error("Missing VITE_GOOGLE_CLIENT_ID");
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId="596268404302-kktqpqnl8t8r3fc33rb4clslfj8t3msc.apps.googleusercontent.com">
+    <GoogleOAuthProvider clientId={googleClientId}>
       <AppProvider>
         <SocketProvider>
           <App />
