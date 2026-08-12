@@ -1,6 +1,6 @@
 # EC2 Deployment Plan
 
-This plan deploys the backend on one AWS EC2 instance with Docker Compose, Nginx as the API gateway, MongoDB Atlas for data, Cloudinary for media, and a managed RabbitMQ provider such as CloudAMQP.
+This plan deploys the backend on one AWS EC2 instance with Docker Compose, Caddy as the HTTPS API gateway, MongoDB Atlas for data, Cloudinary for media, and a managed RabbitMQ provider such as CloudAMQP.
 
 ## 1. Prepare Third-Party Services
 
@@ -31,7 +31,7 @@ Recommended starting instance:
 
 - Ubuntu 24.04 LTS.
 - t3.micro/t3.small if covered by credits, or t4g.small if you are comfortable with ARM.
-- Security group inbound: 22 from your IP, 80 from anywhere, 443 later if you add direct TLS.
+- Security group inbound: 22 from your IP, 80 from anywhere, 443 from anywhere.
 
 ## 4. Install Server Dependencies
 
@@ -63,6 +63,13 @@ nano .env
 
 Fill in real secrets. Do not commit `.env`.
 
+Set your free backend hostname from the EC2 public IP. If your EC2 IP is `13.50.20.10`, use:
+
+```env
+BACKEND_HOST=13.50.20.10.sslip.io
+ACME_EMAIL=your-email@example.com
+```
+
 ## 6. Start Backend
 
 Build and start all services:
@@ -82,6 +89,7 @@ Health check:
 
 ```bash
 curl http://localhost/health
+curl https://your-ec2-public-ip.sslip.io/health
 ```
 
 ## 7. Point Domain
@@ -90,6 +98,12 @@ In Cloudflare DNS:
 
 - `api.your-domain.com` -> EC2 public IP.
 - Proxy can be enabled after the first successful test.
+
+If you are not using a paid domain, skip DNS and use:
+
+```text
+https://your-ec2-public-ip.sslip.io
+```
 
 In backend `.env`, set:
 
@@ -109,6 +123,12 @@ In Stripe Dashboard, create a webhook endpoint:
 
 ```text
 https://api.your-domain.com/api/payment/stripe/webhook
+```
+
+Without a paid domain, use:
+
+```text
+https://your-ec2-public-ip.sslip.io/api/payment/stripe/webhook
 ```
 
 Copy the webhook secret into `STRIPE_WEBHOOK_SECRET` in `.env`, then restart Compose.

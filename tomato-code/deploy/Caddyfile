@@ -1,0 +1,55 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$BACKEND_HOST} {
+  encode gzip
+
+  request_body {
+    max_size 10MB
+  }
+
+  handle /health {
+    respond "ok" 200
+  }
+
+  handle /api/auth/* {
+    reverse_proxy auth:5000
+  }
+
+  handle /api/restaurant/* {
+    reverse_proxy restaurant:5001
+  }
+
+  handle /api/item/* {
+    reverse_proxy restaurant:5001
+  }
+
+  handle /api/cart/* {
+    reverse_proxy restaurant:5001
+  }
+
+  handle /api/address/* {
+    reverse_proxy restaurant:5001
+  }
+
+  handle /api/order/* {
+    reverse_proxy restaurant:5001
+  }
+
+  handle /api/payment/* {
+    reverse_proxy utils:5002
+  }
+
+  handle /api/rider/* {
+    reverse_proxy rider:5005
+  }
+
+  handle /api/v1/* {
+    reverse_proxy admin:5006
+  }
+
+  handle /socket.io/* {
+    reverse_proxy realtime:5004
+  }
+}
