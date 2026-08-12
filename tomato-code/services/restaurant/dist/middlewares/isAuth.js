@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 export const isAuth = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -36,11 +37,19 @@ export const isAuth = async (req, res, next) => {
 };
 export const isSeller = async (req, res, next) => {
     const user = req.user;
-    if (user && user.role !== "seller") {
+    if (!user?._id) {
         res.status(401).json({
+            message: "Please Login",
+        });
+        return;
+    }
+    const currentUser = await User.findById(user._id).select("role").lean();
+    if (!currentUser || currentUser.role !== "seller") {
+        res.status(403).json({
             message: "You are not authorized seller",
         });
         return;
     }
+    user.role = currentUser.role;
     next();
 };

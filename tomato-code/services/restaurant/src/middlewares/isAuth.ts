@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import User from "../models/User.js";
 
 export interface IUser {
   _id: string;
@@ -71,12 +72,23 @@ export const isSeller = async (
 ): Promise<void> => {
   const user = req.user;
 
-  if (user && user.role !== "seller") {
+  if (!user?._id) {
     res.status(401).json({
+      message: "Please Login",
+    });
+    return;
+  }
+
+  const currentUser = await User.findById(user._id).select("role").lean();
+
+  if (!currentUser || currentUser.role !== "seller") {
+    res.status(403).json({
       message: "You are not authorized seller",
     });
     return;
   }
+
+  user.role = currentUser.role;
 
   next();
 };

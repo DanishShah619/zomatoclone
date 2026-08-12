@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 const connectDB = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI, {
-            dbName: "Zomato_Clone",
+            dbName: process.env.DB_NAME || "Zomato_Clone",
         });
         console.log("connected to mongodb");
     }

@@ -4,6 +4,10 @@ import TryCatch from "../middlewares/trycatch.js";
 import Restaurant from "../models/Restaurant.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+const MAX_NEARBY_RADIUS_METERS = 20000;
+const MAX_SEARCH_LENGTH = 64;
+const MAX_NEARBY_RESULTS = 50;
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export const addRestraunt = TryCatch(async (req, res) => {
     const user = req.user;
     if (!user) {
@@ -45,6 +49,10 @@ export const addRestraunt = TryCatch(async (req, res) => {
     }
     const { data: uploadResult } = await axios.post(`${process.env.UTILS_SERVICE}/api/upload`, {
         buffer: fileBuffer.content,
+    }, {
+        headers: {
+            "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+        },
     });
     const restaurant = await Restaurant.create({
         name,
@@ -144,7 +152,7 @@ export const updateRestaurant = TryCatch(async (req, res) => {
     });
 });
 export const getNearbyRestaurant = TryCatch(async (req, res) => {
-    const { latitude, longitude, radius = 5000, search = "" } = req.query;
+    const { latitude, longitude, radius = 5000, search = "", limit = 25 } = req.query;
     if (!latitude || !longitude) {
         return res.status(400).json({
             message: "Latitude and longitude are required",
@@ -153,20 +161,36 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
     const numericLatitude = Number(latitude);
     const numericLongitude = Number(longitude);
     const numericRadius = Number(radius);
+    const numericLimit = Number(limit);
     if (!Number.isFinite(numericLatitude) ||
         !Number.isFinite(numericLongitude) ||
         !Number.isFinite(numericRadius) ||
-        numericRadius <= 0) {
+        !Number.isFinite(numericLimit) ||
+        numericRadius <= 0 ||
+        numericLimit <= 0) {
         return res.status(400).json({
             message: "Valid latitude, longitude and radius are required",
+        });
+    }
+    if (numericLatitude < -90 ||
+        numericLatitude > 90 ||
+        numericLongitude < -180 ||
+        numericLongitude > 180) {
+        return res.status(400).json({
+            message: "Latitude or longitude is out of range",
         });
     }
     const query = {
         isVerified: true,
     };
     if (search && typeof search === "string") {
-        query.name = { $regex: search, $options: "i" };
+        const normalizedSearch = search.trim().slice(0, MAX_SEARCH_LENGTH);
+        if (normalizedSearch) {
+            query.name = { $regex: escapeRegex(normalizedSearch), $options: "i" };
+        }
     }
+    const safeRadius = Math.min(numericRadius, MAX_NEARBY_RADIUS_METERS);
+    const safeLimit = Math.min(Math.trunc(numericLimit), MAX_NEARBY_RESULTS);
     const restaurants = await Restaurant.aggregate([
         {
             $geoNear: {
@@ -175,7 +199,7 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
                     coordinates: [numericLongitude, numericLatitude],
                 },
                 distanceField: "distance",
-                maxDistance: numericRadius,
+                maxDistance: safeRadius,
                 spherical: true,
                 query,
             },
@@ -192,6 +216,9 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
                     $round: [{ $divide: ["$distance", 1000] }, 2],
                 },
             },
+        },
+        {
+            $limit: safeLimit,
         },
     ]);
     res.json({

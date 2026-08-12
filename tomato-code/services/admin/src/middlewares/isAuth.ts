@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { ObjectId } from "mongodb";
+import { getUserCollection } from "../util/collection.js";
 
 export interface IUser {
   _id: string;
@@ -77,12 +79,26 @@ export const isAdmin = async (
       return;
     }
 
-    if (req.user.role !== "admin") {
+    if (!ObjectId.isValid(req.user._id)) {
+      res.status(401).json({
+        message: "Invalid user",
+      });
+      return;
+    }
+
+    const currentUser = await (await getUserCollection()).findOne(
+      { _id: new ObjectId(req.user._id) },
+      { projection: { role: 1 } }
+    );
+
+    if (!currentUser || currentUser.role !== "admin") {
       res.status(403).json({
         message: "Access denied",
       });
       return;
     }
+
+    req.user.role = currentUser.role;
 
     next();
   } catch (error) {

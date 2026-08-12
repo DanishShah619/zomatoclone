@@ -37,6 +37,10 @@ export const addMenuItem = TryCatch(async (req, res) => {
     }
     const { data: uploadResult } = await axios.post(`${process.env.UTILS_SERVICE}/api/upload`, {
         buffer: fileBuffer.content,
+    }, {
+        headers: {
+            "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+        },
     });
     const item = await MenuItems.create({
         name,

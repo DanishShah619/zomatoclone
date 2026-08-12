@@ -19,8 +19,11 @@ const corsOptions = process.env.FRONTEND_URL
 app.use(cors(corsOptions));
 app.use(compression());
 app.post("/api/payment/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhook);
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "8mb" }));
+app.use(express.urlencoded({ limit: "8mb", extended: true }));
+app.get("/health", (_req, res) => {
+    res.json({ ok: true, service: "utils" });
+});
 const { CLOUD_NAME, CLOUD_API_KEY, CLOUD_SECRET_KEY } = process.env;
 if (!CLOUD_NAME || !CLOUD_API_KEY || !CLOUD_SECRET_KEY) {
     throw new Error("Missing Cloudinary environment variables");

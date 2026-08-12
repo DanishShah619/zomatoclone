@@ -8,16 +8,17 @@ export const startOrderReadyConsumer = async () => {
         if (!msg)
             return;
         try {
-            console.log("Recieved Message", msg.content.toString());
             const event = JSON.parse(msg.content.toString());
-            console.log("event type", event.type);
             if (event.type !== "ORDER_READY_FOR_RIDER") {
-                console.log("skipping non-order-ready-for-rider event");
                 channel.ack(msg);
                 return;
             }
-            const { orderId, restaurantId, location } = event.data;
-            console.log("Searching for rider near:", location);
+            const { orderId, restaurantId, location } = event.data ?? {};
+            if (!orderId || !restaurantId || !location) {
+                console.log("Skipping invalid order-ready event");
+                channel.ack(msg);
+                return;
+            }
             const riders = await Rider.find({
                 isAvailble: true,
                 isVerified: true,
@@ -27,15 +28,15 @@ export const startOrderReadyConsumer = async () => {
                         $maxDistance: 500,
                     },
                 },
-            });
-            console.log(`Found ${riders.length} nearby riders`);
+            })
+                .select("userId")
+                .limit(20)
+                .lean();
             if (riders.length === 0) {
-                console.log("No riders available nearby");
                 channel.ack(msg);
                 return;
             }
             for (const rider of riders) {
-                console.log(`Notifying rider userId: ${rider.userId}`);
                 try {
                     await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
                         event: "order:available",
@@ -46,17 +47,16 @@ export const startOrderReadyConsumer = async () => {
                             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
                         },
                     });
-                    console.log(`Notified rider ${rider.userId} successfully`);
                 }
                 catch (error) {
                     console.log(`Failed to notify rider ${rider.userId}`);
                 }
             }
             channel.ack(msg);
-            console.log("Message acknowledged");
         }
         catch (error) {
-            console.log("OrderReady consumer error:", error);
+            console.log("Order-ready consumer error:", error);
+            channel.nack(msg, false, false);
         }
     });
 };

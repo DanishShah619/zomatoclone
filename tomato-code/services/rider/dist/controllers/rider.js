@@ -28,6 +28,10 @@ export const addRiderProfile = TryCatch(async (req, res) => {
     }
     const { data: uploadResult } = await axios.post(`${process.env.UTILS_SERVICE}/api/upload`, {
         buffer: fileBuffer.content,
+    }, {
+        headers: {
+            "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+        },
     });
     const { phoneNumber, aadharNumber, drivingLicenseNumber, latitude, longitude, } = req.body;
     if (!phoneNumber ||
@@ -131,7 +135,11 @@ export const acceptOrder = TryCatch(async (req, res) => {
             message: "Please Login",
         });
     }
-    const rider = await Rider.findOne({ userId: riderUserId, isAvailble: true });
+    const rider = await Rider.findOne({
+        userId: riderUserId,
+        isAvailble: true,
+        isVerified: true,
+    });
     if (!rider) {
         return res.status(404).json({ message: "rider not found" });
     }
@@ -145,6 +153,7 @@ export const acceptOrder = TryCatch(async (req, res) => {
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+                "x-rider-id": rider._id.toString(),
             },
         });
         if (data.success) {
@@ -209,6 +218,7 @@ export const updateOrderStatus = TryCatch(async (req, res) => {
         const { data } = await axios.put(`${process.env.RESTAURANT_SERVICE}/api/order/update/status/rider`, { orderId }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+                "x-rider-id": rider._id.toString(),
             },
         });
         res.json({
@@ -265,6 +275,7 @@ export const updateRiderLocation = TryCatch(async (req, res) => {
         const { data: order } = await axios.get(`${process.env.RESTAURANT_SERVICE}/api/order/current/rider?riderId=${rider._id}`, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+                "x-rider-id": rider._id.toString(),
             },
         });
         await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
@@ -274,6 +285,7 @@ export const updateRiderLocation = TryCatch(async (req, res) => {
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+                "x-rider-id": rider._id.toString(),
             },
         });
     }

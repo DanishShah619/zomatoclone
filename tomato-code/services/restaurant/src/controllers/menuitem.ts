@@ -51,6 +51,11 @@ export const addMenuItem = TryCatch(async (req: AuthenticatedRequest, res) => {
     `${process.env.UTILS_SERVICE}/api/upload`,
     {
       buffer: fileBuffer.content,
+    },
+    {
+      headers: {
+        "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+      },
     }
   );
 

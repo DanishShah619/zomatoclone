@@ -24,6 +24,9 @@ app.use(cors(corsOptions));
 app.use(compression());
 app.use(express.json());
 const PORT = process.env.PORT || 5001;
+app.get("/health", (_req, res) => {
+    res.json({ ok: true, service: "restaurant" });
+});
 app.use("/api/restaurant", restaurantRoutes);
 app.use("/api/item", itemRoutes);
 app.use("/api/cart", cartRoutes);

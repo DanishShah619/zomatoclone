@@ -6,6 +6,13 @@ import Restaurant from "../models/Restaurant.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
+const MAX_NEARBY_RADIUS_METERS = 20000;
+const MAX_SEARCH_LENGTH = 64;
+const MAX_NEARBY_RESULTS = 50;
+
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const addRestraunt = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
 
@@ -62,6 +69,11 @@ export const addRestraunt = TryCatch(async (req: AuthenticatedRequest, res) => {
     `${process.env.UTILS_SERVICE}/api/upload`,
     {
       buffer: fileBuffer.content,
+    },
+    {
+      headers: {
+        "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+      },
     }
   );
 
@@ -201,7 +213,7 @@ export const updateRestaurant = TryCatch(
 );
 
 export const getNearbyRestaurant = TryCatch(async (req, res) => {
-  const { latitude, longitude, radius = 5000, search = "" } = req.query;
+  const { latitude, longitude, radius = 5000, search = "", limit = 25 } = req.query;
 
   if (!latitude || !longitude) {
     return res.status(400).json({
@@ -212,15 +224,29 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
   const numericLatitude = Number(latitude);
   const numericLongitude = Number(longitude);
   const numericRadius = Number(radius);
+  const numericLimit = Number(limit);
 
   if (
     !Number.isFinite(numericLatitude) ||
     !Number.isFinite(numericLongitude) ||
     !Number.isFinite(numericRadius) ||
-    numericRadius <= 0
+    !Number.isFinite(numericLimit) ||
+    numericRadius <= 0 ||
+    numericLimit <= 0
   ) {
     return res.status(400).json({
       message: "Valid latitude, longitude and radius are required",
+    });
+  }
+
+  if (
+    numericLatitude < -90 ||
+    numericLatitude > 90 ||
+    numericLongitude < -180 ||
+    numericLongitude > 180
+  ) {
+    return res.status(400).json({
+      message: "Latitude or longitude is out of range",
     });
   }
 
@@ -229,8 +255,15 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
   };
 
   if (search && typeof search === "string") {
-    query.name = { $regex: search, $options: "i" };
+    const normalizedSearch = search.trim().slice(0, MAX_SEARCH_LENGTH);
+
+    if (normalizedSearch) {
+      query.name = { $regex: escapeRegex(normalizedSearch), $options: "i" };
+    }
   }
+
+  const safeRadius = Math.min(numericRadius, MAX_NEARBY_RADIUS_METERS);
+  const safeLimit = Math.min(Math.trunc(numericLimit), MAX_NEARBY_RESULTS);
 
   const restaurants = await Restaurant.aggregate([
     {
@@ -240,7 +273,7 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
           coordinates: [numericLongitude, numericLatitude],
         },
         distanceField: "distance",
-        maxDistance: numericRadius,
+        maxDistance: safeRadius,
         spherical: true,
         query,
       },
@@ -257,6 +290,9 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
           $round: [{ $divide: ["$distance", 1000] }, 2],
         },
       },
+    },
+    {
+      $limit: safeLimit,
     },
   ]);
 

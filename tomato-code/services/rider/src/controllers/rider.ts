@@ -40,6 +40,11 @@ export const addRiderProfile = TryCatch(
       `${process.env.UTILS_SERVICE}/api/upload`,
       {
         buffer: fileBuffer.content,
+      },
+      {
+        headers: {
+          "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+        },
       }
     );
 
@@ -183,7 +188,11 @@ export const acceptOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
     });
   }
 
-  const rider = await Rider.findOne({ userId: riderUserId, isAvailble: true });
+  const rider = await Rider.findOne({
+    userId: riderUserId,
+    isAvailble: true,
+    isVerified: true,
+  });
 
   if (!rider) {
     return res.status(404).json({ message: "rider not found" });
@@ -202,6 +211,7 @@ export const acceptOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
       {
         headers: {
           "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+          "x-rider-id": rider._id.toString(),
         },
       }
     );
@@ -292,6 +302,7 @@ export const updateOrderStatus = TryCatch(
         {
           headers: {
             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            "x-rider-id": rider._id.toString(),
           },
         }
       );
@@ -364,6 +375,7 @@ export const updateRiderLocation = TryCatch(
         {
           headers: {
             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            "x-rider-id": rider._id.toString(),
           },
         }
       );
@@ -378,6 +390,7 @@ export const updateRiderLocation = TryCatch(
         {
           headers: {
             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            "x-rider-id": rider._id.toString(),
           },
         }
       );

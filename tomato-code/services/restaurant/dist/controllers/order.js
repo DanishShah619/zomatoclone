@@ -10,6 +10,12 @@ const PAYMENT_METHODS = ["stripe"];
 const isValidObjectId = (value) => typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
 const isValidPaymentMethod = (value) => typeof value === "string" &&
     PAYMENT_METHODS.includes(value);
+const parseLimit = (value, defaultLimit = 25, maxLimit = 50) => {
+    const parsed = typeof value === "string" ? Number(value) : defaultLimit;
+    if (!Number.isInteger(parsed) || parsed <= 0)
+        return defaultLimit;
+    return Math.min(parsed, maxLimit);
+};
 export const createOrder = TryCatch(async (req, res) => {
     const user = req.user;
     if (!user) {
@@ -170,12 +176,21 @@ export const fetchRestaurantOrders = TryCatch(async (req, res) => {
             message: "Unauthorized",
         });
     }
-    if (!restaurantId) {
+    if (!isValidObjectId(restaurantId)) {
         return res.status(400).json({
-            message: "Restaurant id is required",
+            message: "Valid restaurant id is required",
         });
     }
-    const limit = req.query.limit ? Number(req.query.limit) : 0;
+    const restaurant = await Restaurant.findOne({
+        _id: restaurantId,
+        ownerId: user._id.toString(),
+    }).lean();
+    if (!restaurant) {
+        return res.status(403).json({
+            message: "You are not allowed to view these orders",
+        });
+    }
+    const limit = parseLimit(req.query.limit);
     const orders = await Order.find({
         restaurantId,
         paymentStatus: "paid",
@@ -271,6 +286,7 @@ export const getMyOrders = TryCatch(async (req, res) => {
         paymentStatus: "paid",
     })
         .sort({ createdAt: -1 })
+        .limit(parseLimit(req.query.limit))
         .lean();
     res.json({ orders });
 });
@@ -305,41 +321,43 @@ export const assignRiderToOrder = TryCatch(async (req, res) => {
         });
     }
     const { orderId, riderId, riderName, riderPhone } = req.body;
-    if (!isValidObjectId(orderId) || typeof riderId !== "string") {
+    if (!isValidObjectId(orderId) ||
+        !isValidObjectId(riderId) ||
+        typeof riderName !== "string" ||
+        typeof riderPhone !== "string") {
         return res.status(400).json({
             message: "Valid order and rider details are required",
         });
     }
     const orderAvailable = await Order.findOne({
         riderId,
-        status: { $ne: "delivered" },
+        status: { $nin: ["delivered", "cancelled"] },
     });
     if (orderAvailable) {
         return res.status(400).json({
             message: "You already have an order",
         });
     }
-    const order = await Order.findById(orderId);
-    if (!order) {
-        return res.status(404).json({
-            message: "Order not found",
-        });
-    }
-    if (order.riderId !== null) {
-        return res.status(400).json({
-            message: "Order Already taken",
-        });
-    }
-    const orderUpdated = await Order.findOneAndUpdate({ _id: orderId, riderId: null }, {
+    const orderUpdated = await Order.findOneAndUpdate({
+        _id: orderId,
+        riderId: null,
+        paymentStatus: "paid",
+        status: "ready_for_rider",
+    }, {
         riderId,
         riderName,
         riderPhone,
         status: "rider_assigned",
     }, { new: true });
+    if (!orderUpdated) {
+        return res.status(409).json({
+            message: "Order is not available for rider assignment",
+        });
+    }
     await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
         event: "order:rider_assigned",
-        room: `user:${order.userId}`,
-        payload: order,
+        room: `user:${orderUpdated.userId}`,
+        payload: orderUpdated.toObject(),
     }, {
         headers: {
             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -347,8 +365,8 @@ export const assignRiderToOrder = TryCatch(async (req, res) => {
     });
     await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
         event: "order:rider_assigned",
-        room: `restaurant:${order.restaurantId}`,
-        payload: order,
+        room: `restaurant:${orderUpdated.restaurantId}`,
+        payload: orderUpdated.toObject(),
     }, {
         headers: {
             "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -374,7 +392,7 @@ export const getCurrentOrderForRider = TryCatch(async (req, res) => {
     }
     const order = await Order.findOne({
         riderId,
-        status: { $ne: "delivered" },
+        status: { $nin: ["delivered", "cancelled"] },
     }).populate("restaurantId");
     if (!order) {
         return res.status(404).json({
@@ -389,13 +407,18 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
             message: "Forbidden",
         });
     }
+    const riderId = req.headers["x-rider-id"];
     const { orderId } = req.body;
-    if (!isValidObjectId(orderId)) {
+    if (!isValidObjectId(orderId) || !isValidObjectId(riderId)) {
         return res.status(400).json({
-            message: "Valid order id is required",
+            message: "Valid order and rider details are required",
         });
     }
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne({
+        _id: orderId,
+        riderId,
+        paymentStatus: "paid",
+    });
     if (!order) {
         return res.status(404).json({
             message: "Order not found",
@@ -407,7 +430,7 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
         await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
             event: "order:rider_assigned",
             room: `restaurant:${order.restaurantId}`,
-            payload: order,
+            payload: order.toObject(),
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -416,7 +439,7 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
         await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
             event: "order:rider_assigned",
             room: `user:${order.userId}`,
-            payload: order,
+            payload: order.toObject(),
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -432,7 +455,7 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
         await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
             event: "order:rider_assigned",
             room: `restaurant:${order.restaurantId}`,
-            payload: order,
+            payload: order.toObject(),
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -441,7 +464,7 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
         await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
             event: "order:rider_assigned",
             room: `user:${order.userId}`,
-            payload: order,
+            payload: order.toObject(),
         }, {
             headers: {
                 "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
@@ -451,4 +474,7 @@ export const updateOrderStatusRider = TryCatch(async (req, res) => {
             message: "Order updated Successfully",
         });
     }
+    return res.status(400).json({
+        message: "Order cannot be updated from its current status",
+    });
 });

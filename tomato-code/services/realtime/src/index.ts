@@ -23,6 +23,10 @@ app.use(cors(corsOptions));
 app.use(compression());
 app.use(express.json());
 
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "realtime" });
+});
+
 app.use("/api/v1/internal", internalRoute);
 
 const server = http.createServer(app);

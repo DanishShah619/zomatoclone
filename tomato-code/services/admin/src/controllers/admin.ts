@@ -5,9 +5,21 @@ import {
   getRiderCollection,
 } from "../util/collection.js";
 
+const parseLimit = (value: unknown, defaultLimit = 25, maxLimit = 100) => {
+  const parsed = typeof value === "string" ? Number(value) : defaultLimit;
+
+  if (!Number.isInteger(parsed) || parsed <= 0) return defaultLimit;
+
+  return Math.min(parsed, maxLimit);
+};
+
 export const getPendingRestaurant = TryCatch(async (req, res) => {
+  const limit = parseLimit(req.query.limit);
+
   const restaurants = await (await getRestaurantCollection())
     .find({ isVerified: false })
+    .sort({ createdAt: -1 })
+    .limit(limit)
     .toArray();
 
   res.json({
@@ -17,8 +29,12 @@ export const getPendingRestaurant = TryCatch(async (req, res) => {
 });
 
 export const getPendingRiders = TryCatch(async (req, res) => {
+  const limit = parseLimit(req.query.limit);
+
   const riders = await (await getRiderCollection())
     .find({ isVerified: false })
+    .sort({ createdAt: -1 })
+    .limit(limit)
     .toArray();
 
   res.json({

@@ -26,6 +26,10 @@ const corsOptions = process.env.FRONTEND_URL
 app.use(cors(corsOptions));
 app.use(compression());
 
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "rider" });
+});
+
 app.use("/api/rider", riderRoutes);
 
 app.listen(process.env.PORT, () => {

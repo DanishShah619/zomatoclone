@@ -16,7 +16,12 @@ export const startPaymentConsumer = async () => {
         return;
       }
 
-      const { orderId } = event.data;
+      const { orderId } = event.data ?? {};
+
+      if (!orderId) {
+        channel.ack(msg);
+        return;
+      }
 
       const order = await Order.findOneAndUpdate(
         {
@@ -40,28 +45,32 @@ export const startPaymentConsumer = async () => {
         return;
       }
 
-      console.log("✅Order Placed:", order._id);
+      console.log("Order placed:", order._id);
 
-      //   socket work
+      try {
+        await axios.post(
+          `${process.env.REALTIME_SERVICE}/api/v1/internal/emit`,
+          {
+            event: "order:new",
+            room: `restaurant:${order.restaurantId}`,
+            payload: {
+              orderId: order._id,
+            },
+          },
+          {
+            headers: {
+              "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Failed to emit order:new event:", error);
+      }
 
-      await axios.post(
-        `${process.env.REALTIME_SERVICE}/api/v1/internal/emit`,
-        {
-          event: "order:new",
-          room: `restaurant:${order.restaurantId}`,
-          payload: {
-            orderId: order._id,
-          },
-        },
-        {
-          headers: {
-            "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
-          },
-        }
-      );
       channel.ack(msg);
     } catch (error) {
-      console.error("❌ Payment cosumer error:", error);
+      console.error("Payment consumer error:", error);
+      channel.nack(msg, false, false);
     }
   });
 };

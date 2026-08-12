@@ -18,6 +18,11 @@ const corsOptions = process.env.FRONTEND_URL
 
 app.use(cors(corsOptions));
 app.use(compression());
+
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "admin" });
+});
+
 app.use("/api/v1", adminRoutes);
 
 app.listen(process.env.PORT, () => {

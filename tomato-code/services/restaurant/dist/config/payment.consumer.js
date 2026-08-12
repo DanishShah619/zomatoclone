@@ -12,7 +12,11 @@ export const startPaymentConsumer = async () => {
                 channel.ack(msg);
                 return;
             }
-            const { orderId } = event.data;
+            const { orderId } = event.data ?? {};
+            if (!orderId) {
+                channel.ack(msg);
+                return;
+            }
             const order = await Order.findOneAndUpdate({
                 _id: orderId,
                 paymentStatus: { $ne: "paid" },
@@ -29,23 +33,28 @@ export const startPaymentConsumer = async () => {
                 channel.ack(msg);
                 return;
             }
-            console.log("✅Order Placed:", order._id);
-            //   socket work
-            await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
-                event: "order:new",
-                room: `restaurant:${order.restaurantId}`,
-                payload: {
-                    orderId: order._id,
-                },
-            }, {
-                headers: {
-                    "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
-                },
-            });
+            console.log("Order placed:", order._id);
+            try {
+                await axios.post(`${process.env.REALTIME_SERVICE}/api/v1/internal/emit`, {
+                    event: "order:new",
+                    room: `restaurant:${order.restaurantId}`,
+                    payload: {
+                        orderId: order._id,
+                    },
+                }, {
+                    headers: {
+                        "x-internal-key": process.env.INTERNAL_SERVICE_KEY,
+                    },
+                });
+            }
+            catch (error) {
+                console.error("Failed to emit order:new event:", error);
+            }
             channel.ack(msg);
         }
         catch (error) {
-            console.error("❌ Payment cosumer error:", error);
+            console.error("Payment consumer error:", error);
+            channel.nack(msg, false, false);
         }
     });
 };
