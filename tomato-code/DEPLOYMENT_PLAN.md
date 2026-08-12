@@ -124,7 +124,29 @@ Test these in order:
 - Order status updates.
 - Rider live location/socket updates.
 
-## 10. Scale Later
+## 10. Enable Keep-Alive Watchdog
+
+Docker Compose already uses `restart: unless-stopped`. For an extra EC2 safety net, enable the keep-alive timer:
+
+```bash
+chmod +x deploy/keep-alive.sh
+sudo cp deploy/keep-alive.service /etc/systemd/system/keep-alive.service
+sudo cp deploy/keep-alive.timer /etc/systemd/system/keep-alive.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now keep-alive.timer
+```
+
+Check it:
+
+```bash
+systemctl list-timers keep-alive.timer
+sudo journalctl -u keep-alive.service -n 50
+sudo tail -f /var/log/tomato-keep-alive.log
+```
+
+If your repo path is not `/home/ubuntu/tomato-code`, edit `APP_DIR` in `deploy/keep-alive.service` before copying it.
+
+## 11. Scale Later
 
 Start with one EC2 instance. When traffic grows:
 

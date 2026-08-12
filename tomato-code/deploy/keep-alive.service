@@ -1,0 +1,9 @@
+[Unit]
+Description=Tomato backend keep-alive check
+Wants=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+Environment=APP_DIR=/home/ubuntu/tomato-code
+ExecStart=/home/ubuntu/tomato-code/deploy/keep-alive.sh

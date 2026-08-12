@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Tomato backend keep-alive check every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=keep-alive.service
+
+[Install]
+WantedBy=timers.target
