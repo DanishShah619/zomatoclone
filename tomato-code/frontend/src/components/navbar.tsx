@@ -8,7 +8,7 @@ const Navbar = () => {
   const { isAuth, city, quauntity } = useAppData();
   const currLocation = useLocation();
 
-  const isHomePage = currLocation.pathname === "/";
+  const isHomePage = currLocation.pathname === "/restaurants";
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -28,7 +28,7 @@ const Navbar = () => {
     <div className="w-full bg-white shadow-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link
-          to={"/"}
+          to={isAuth ? "/restaurants" : "/"}
           className="text-2xl font-bold text-[#E23744] cursor-pointer"
         >
           Tomato

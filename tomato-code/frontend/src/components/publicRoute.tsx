@@ -6,7 +6,7 @@ const PublicRoute = () => {
 
   if (loading) return null;
 
-  return isAuth ? <Navigate to="/" replace /> : <Outlet />;
+  return isAuth ? <Navigate to="/restaurants" replace /> : <Outlet />;
 };
 
 export default PublicRoute;
