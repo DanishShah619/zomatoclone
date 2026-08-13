@@ -4,7 +4,7 @@ import { useSocket } from "../context/SocketContext";
 import axios from "axios";
 import { riderService } from "../main";
 import toast from "react-hot-toast";
-import { BiUpload } from "react-icons/bi";
+import { BiLogOut, BiUpload } from "react-icons/bi";
 import type { IOrder } from "../types";
 import audio from "../assets/faaah.mp3";
 import RiderOrderRequest from "../components/RiderOrderRequest";
@@ -22,8 +22,16 @@ interface IRider {
 }
 
 const RiderDashboard = () => {
-  const { user } = useAppData();
+  const { user, setUser, setIsAuth } = useAppData();
   const { socket } = useSocket();
+
+  const logoutHandler = () => {
+    localStorage.setItem("token", "");
+    setUser(null);
+    setIsAuth(false);
+    toast.success("Logged out successfully");
+    window.location.assign("/login");
+  };
 
   const [profile, setProfile] = useState<IRider | null>(null);
   const [loading, setLoading] = useState(true);
@@ -279,6 +287,17 @@ const RiderDashboard = () => {
     <div className="space-y-4">
       <div className="mx-auto max-w-md px-4 py-4">
         <div className="rounded-xl bg-white p-4 shadow space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={logoutHandler}
+              className="flex items-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+            >
+              <BiLogOut size={18} />
+              Logout
+            </button>
+          </div>
+
           <img
             src={profile.picture}
             className="mx-auto h-24 w-24 rounded-full object-cover"
