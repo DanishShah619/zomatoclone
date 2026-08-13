@@ -228,14 +228,18 @@ const RiderDashboard = () => {
         <div className="mx-auto max-w-lg rounded-xl bg-white p-6 shadow-sm space-y-5">
           <h1 className="text-xl font-semibold">Add Your Profile</h1>
           <input
-            type="number"
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="Aadhar number"
             value={aadharNumber}
             onChange={(e) => setaadharNumber(e.target.value)}
             className="w-full rounded-lg border px-4 py-2 text-sm outline-none"
           />
           <input
-            type="number"
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="Contact Number"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
