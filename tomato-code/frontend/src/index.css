@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+.flip-char {
+  animation: flip-text var(--flip-duration) var(--flip-delay)
+    var(--flip-iteration);
+  transform-origin: 50% 55%;
+}
+
+@keyframes flip-text {
+  0%,
+  24%,
+  100% {
+    transform: rotateX(0deg);
+  }
+
+  40% {
+    transform: rotateX(90deg);
+    color: #fb923c;
+  }
+
+  55% {
+    transform: rotateX(0deg);
+    color: #e23744;
+  }
+}

@@ -3,6 +3,9 @@ import { useAppData } from "../context/AppContext";
 import { useEffect, useState } from "react";
 import { CgShoppingCart } from "react-icons/cg";
 import { BiMapPin, BiSearch } from "react-icons/bi";
+import FlipText from "./ui/FlipText";
+
+const logoSrc = "/Gemini_Generated_Image_wjibu7wjibu7wjib.png";
 
 const Navbar = () => {
   const { isAuth, city, quauntity } = useAppData();
@@ -29,9 +32,16 @@ const Navbar = () => {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link
           to={isAuth ? "/restaurants" : "/"}
-          className="text-2xl font-bold text-[#E23744] cursor-pointer"
+          className="flex items-center gap-2 text-2xl font-bold text-[#E23744] cursor-pointer"
         >
-          Tomato
+          <img
+            src={logoSrc}
+            alt="Tomato logo"
+            className="h-10 w-10 rounded-full object-cover"
+          />
+          <FlipText duration={2.4} className="text-[#E23744]">
+            Tomato
+          </FlipText>
         </Link>
 
         <div className="flex items-center gap-4">
