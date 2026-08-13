@@ -1,47 +1,66 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminService } from "../main";
 import AdminRestaurantCard from "../components/AdminRestaurantCard";
 import RiderAdmin from "../components/RiderAdmin";
+
+const ADMIN_REFRESH_INTERVAL_MS = 10000;
 
 const Admin = () => {
   const [restaurant, setRestaurant] = useState<any[]>([]);
   const [riders, setRiders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<"restaurant" | "rider">("restaurant");
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (showInitialLoader = false) => {
     try {
-      const { data } = await axios.get(
-        `${adminService}/api/v1/admin/restaurant/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      if (showInitialLoader) setLoading(true);
+      else setRefreshing(true);
 
-      const response = await axios.get(
-        `${adminService}/api/v1/admin/rider/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      };
 
-      setRestaurant(data.restaurants);
-      setRiders(response.data.riders);
+      const [restaurantResponse, riderResponse] = await Promise.all([
+        axios.get(`${adminService}/api/v1/admin/restaurant/pending`, {
+          headers,
+        }),
+        axios.get(`${adminService}/api/v1/admin/rider/pending`, {
+          headers,
+        }),
+      ]);
+
+      setRestaurant(restaurantResponse.data.restaurants || []);
+      setRiders(riderResponse.data.riders || []);
     } catch (error) {
       console.log(error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(true);
+
+    const intervalId = window.setInterval(() => {
+      fetchData();
+    }, ADMIN_REFRESH_INTERVAL_MS);
+
+    const refreshOnFocus = () => {
+      if (!document.hidden) fetchData();
+    };
+
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -52,7 +71,12 @@ const Admin = () => {
   }
   return (
     <div className="mx-auto max-w-6xl px-6 py-6 space-y-6">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <span className="text-xs font-medium text-gray-400">
+          {refreshing ? "Refreshing..." : "Auto-refreshing"}
+        </span>
+      </div>
 
       <div className="flex gap-4">
         <button
