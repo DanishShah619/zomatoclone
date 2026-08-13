@@ -5,6 +5,7 @@ import type { IRestaurant } from "../types";
 import axios from "axios";
 import { restaurantService } from "../main";
 import RestaurantCard from "../components/RestaurantCard";
+import CurrentOrderBanner from "../components/CurrentOrderBanner";
 
 const Home = () => {
   const { location } = useAppData();
@@ -79,6 +80,7 @@ const Home = () => {
   }
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      <CurrentOrderBanner />
       {restaurants.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {restaurants.map((res) => {
