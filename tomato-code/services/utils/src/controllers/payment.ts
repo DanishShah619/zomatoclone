@@ -6,6 +6,15 @@ import { publishPaymentSuccess } from "../config/payment.producer.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const STRIPE_CURRENCY = "inr";
+const getFrontendUrl = () => {
+  const frontendUrl = process.env.FRONTEND_URL?.split(",")[0]?.trim();
+
+  if (!frontendUrl) {
+    throw new Error("FRONTEND_URL is not configured");
+  }
+
+  return frontendUrl.replace(/\/$/, "");
+};
 
 const isValidObjectId = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
@@ -65,6 +74,7 @@ export const createStripeCheckoutSession = async (
 
     const order = await fetchOrderForPayment(orderId, userId);
     const amount = getAmountInSmallestUnit(order.amount);
+    const frontendUrl = getFrontendUrl();
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -86,8 +96,8 @@ export const createStripeCheckoutSession = async (
         orderId,
         userId,
       },
-      success_url: `${process.env.FRONTEND_URL}/ordersuccess?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/checkout`,
+      success_url: `${frontendUrl}/ordersuccess?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/checkout`,
     });
 
     res.json({
