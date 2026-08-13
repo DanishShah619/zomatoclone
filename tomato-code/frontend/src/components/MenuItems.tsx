@@ -27,8 +27,10 @@ const MenuItems = ({
 }: MenuItemsProps) => {
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [offerDrafts, setOfferDrafts] = useState<Record<string, string>>({});
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [savingOfferId, setSavingOfferId] = useState<string | null>(null);
   const [savingCuisineId, setSavingCuisineId] = useState<string | null>(null);
+  const [savingPriceId, setSavingPriceId] = useState<string | null>(null);
   const { fetchCart } = useAppData();
 
   const handleDelete = async (itemId: string) => {
@@ -133,6 +135,39 @@ const MenuItems = ({
     }
   };
 
+  const saveItemPrice = async (itemId: string, price: number) => {
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    try {
+      setSavingPriceId(itemId);
+      const { data } = await axios.put(
+        `${restaurantService}/api/item/price/${itemId}`,
+        { price },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(data.message);
+      setPriceDrafts((prev) => {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
+      onItemDeleted();
+    } catch (error: any) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to update price");
+    } finally {
+      setSavingPriceId(null);
+    }
+  };
+
   const addToCart = async (restaurantId: string, itemId: string) => {
     try {
       setLoadingItemId(itemId);
@@ -169,6 +204,7 @@ const MenuItems = ({
         const offerPercent = item.offer?.discountPercent || 0;
         const draftPercent =
           offerDrafts[item._id] ?? String(item.offer?.discountPercent || 10);
+        const draftPrice = priceDrafts[item._id] ?? String(item.price);
         const discountedPrice = getDiscountedPrice(item.price, offerPercent);
 
         return (
@@ -264,6 +300,36 @@ const MenuItems = ({
 
               {isSeller && (
                 <div className="mt-3 min-w-0 rounded-lg border bg-gray-50 p-2">
+                  <div className="mb-2">
+                    <label className="mb-1 block text-xs font-semibold text-gray-500">
+                      Dish price
+                    </label>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={draftPrice}
+                        disabled={savingPriceId === item._id}
+                        onChange={(e) =>
+                          setPriceDrafts((prev) => ({
+                            ...prev,
+                            [item._id]: e.target.value,
+                          }))
+                        }
+                        className="h-8 min-w-0 flex-1 rounded border px-2 py-1 text-xs"
+                      />
+                      <button
+                        onClick={() => saveItemPrice(item._id, Number(draftPrice))}
+                        disabled={
+                          savingPriceId === item._id ||
+                          Number(draftPrice) === item.price
+                        }
+                        className="h-8 shrink-0 rounded bg-gray-900 px-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
                   {cuisineOptions.length > 0 && (
                     <div className="mb-2">
                       <label className="mb-1 block text-xs font-semibold text-gray-500">

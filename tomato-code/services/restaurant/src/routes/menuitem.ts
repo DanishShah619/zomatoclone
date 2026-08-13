@@ -6,6 +6,7 @@ import {
   getAllItems,
   updateMenuItemCuisine,
   updateMenuItemOffer,
+  updateMenuItemPrice,
   toggleMenuItemAvailability,
 } from "../controllers/menuitem.js";
 import uploadFile from "../middlewares/multer.js";
@@ -18,5 +19,6 @@ router.delete("/:itemId", isAuth, isSeller, deleteMenuItem);
 router.put("/status/:itemId", isAuth, isSeller, toggleMenuItemAvailability);
 router.put("/offer/:itemId", isAuth, isSeller, updateMenuItemOffer);
 router.put("/cuisine/:itemId", isAuth, isSeller, updateMenuItemCuisine);
+router.put("/price/:itemId", isAuth, isSeller, updateMenuItemPrice);
 
 export default router;

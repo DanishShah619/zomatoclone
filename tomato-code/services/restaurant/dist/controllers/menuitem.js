@@ -136,6 +136,48 @@ export const updateMenuItemCuisine = TryCatch(async (req, res) => {
         item,
     });
 });
+export const updateMenuItemPrice = TryCatch(async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({
+            message: "Please login",
+        });
+    }
+    const { itemId } = req.params;
+    const { price } = req.body;
+    if (typeof itemId !== "string" ||
+        !mongoose.Types.ObjectId.isValid(itemId)) {
+        return res.status(400).json({
+            message: "Valid item id is required",
+        });
+    }
+    const numericPrice = Number(price);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        return res.status(400).json({
+            message: "Please enter a valid price",
+        });
+    }
+    const item = await MenuItems.findById(itemId);
+    if (!item) {
+        return res.status(404).json({
+            message: "No item found",
+        });
+    }
+    const restaurant = await Restaurant.findOne({
+        _id: item.restaurantId,
+        ownerId: req.user._id,
+    });
+    if (!restaurant) {
+        return res.status(404).json({
+            message: "NO Restaurant found",
+        });
+    }
+    item.price = Math.round(numericPrice);
+    await item.save();
+    res.json({
+        message: "Item price updated",
+        item,
+    });
+});
 export const deleteMenuItem = TryCatch(async (req, res) => {
     if (!req.user) {
         return res.status(401).json({
