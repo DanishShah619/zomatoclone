@@ -4,6 +4,12 @@ import TryCatch from "../middlewares/trycatch.js";
 import Restaurant from "../models/Restaurant.js";
 import MenuItems from "../models/MenuItems.js";
 import mongoose from "mongoose";
+const parseDiscountPercent = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 90)
+        return null;
+    return Math.round(parsed);
+};
 export const addMenuItem = TryCatch(async (req, res) => {
     if (!req.user) {
         return res.status(401).json({
@@ -134,6 +140,56 @@ export const toggleMenuItemAvailability = TryCatch(async (req, res) => {
     await item.save();
     res.json({
         message: `Item Marked as ${item.isAvailable ? "available" : "unavailable"}`,
+        item,
+    });
+});
+export const updateMenuItemOffer = TryCatch(async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({
+            message: "Please login",
+        });
+    }
+    const { itemId } = req.params;
+    const { isActive, discountPercent } = req.body;
+    if (typeof itemId !== "string" ||
+        !mongoose.Types.ObjectId.isValid(itemId)) {
+        return res.status(400).json({
+            message: "Valid item id is required",
+        });
+    }
+    if (typeof isActive !== "boolean") {
+        return res.status(400).json({
+            message: "Offer status must be boolean",
+        });
+    }
+    const safeDiscount = parseDiscountPercent(discountPercent);
+    if (isActive && (!safeDiscount || safeDiscount <= 0)) {
+        return res.status(400).json({
+            message: "Discount must be between 1 and 90",
+        });
+    }
+    const item = await MenuItems.findById(itemId);
+    if (!item) {
+        return res.status(404).json({
+            message: "No item found",
+        });
+    }
+    const restaraunt = await Restaurant.findOne({
+        _id: item.restaurantId,
+        ownerId: req.user._id,
+    });
+    if (!restaraunt) {
+        return res.status(404).json({
+            message: "NO Restaurant found",
+        });
+    }
+    item.offer = {
+        isActive,
+        discountPercent: isActive ? safeDiscount ?? 0 : 0,
+    };
+    await item.save();
+    res.json({
+        message: isActive ? "Item offer enabled" : "Item offer disabled",
         item,
     });
 });

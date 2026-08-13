@@ -4,10 +4,17 @@ import TryCatch from "../middlewares/trycatch.js";
 import Restaurant from "../models/Restaurant.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import MenuItems from "../models/MenuItems.js";
 const MAX_NEARBY_RADIUS_METERS = 20000;
 const MAX_SEARCH_LENGTH = 64;
 const MAX_NEARBY_RESULTS = 50;
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const parseDiscountPercent = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 90)
+        return null;
+    return Math.round(parsed);
+};
 export const addRestraunt = TryCatch(async (req, res) => {
     const user = req.user;
     if (!user) {
@@ -151,6 +158,40 @@ export const updateRestaurant = TryCatch(async (req, res) => {
         restaurant,
     });
 });
+export const updateRestaurantOffer = TryCatch(async (req, res) => {
+    if (!req.user) {
+        return res.status(403).json({
+            message: "Please Login",
+        });
+    }
+    const { isActive, discountPercent } = req.body;
+    if (typeof isActive !== "boolean") {
+        return res.status(400).json({
+            message: "Offer status must be boolean",
+        });
+    }
+    const safeDiscount = parseDiscountPercent(discountPercent);
+    if (isActive && (!safeDiscount || safeDiscount <= 0)) {
+        return res.status(400).json({
+            message: "Discount must be between 1 and 90",
+        });
+    }
+    const restaurant = await Restaurant.findOneAndUpdate({ ownerId: req.user._id }, {
+        offer: {
+            isActive,
+            discountPercent: isActive ? safeDiscount : 0,
+        },
+    }, { new: true });
+    if (!restaurant) {
+        return res.status(404).json({
+            message: "Restaurant not found",
+        });
+    }
+    res.json({
+        message: isActive ? "Restaurant offer enabled" : "Restaurant offer disabled",
+        restaurant,
+    });
+});
 export const getNearbyRestaurant = TryCatch(async (req, res) => {
     const { latitude, longitude, radius = 5000, search = "", limit = 25 } = req.query;
     if (!latitude || !longitude) {
@@ -218,7 +259,7 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
             },
         },
         {
-            $limit: safeLimit,
+            $limit: MAX_NEARBY_RESULTS,
         },
     ]);
     res.json({
@@ -236,4 +277,99 @@ export const fetchSingleRestaurant = TryCatch(async (req, res) => {
     }
     const restaurant = await Restaurant.findById(id).lean();
     res.json(restaurant);
+});
+export const getBestDeals = TryCatch(async (req, res) => {
+    const { latitude, longitude, radius = 5000, search = "", limit = 25 } = req.query;
+    if (!latitude || !longitude) {
+        return res.status(400).json({
+            message: "Latitude and longitude are required",
+        });
+    }
+    const numericLatitude = Number(latitude);
+    const numericLongitude = Number(longitude);
+    const numericRadius = Number(radius);
+    const numericLimit = Number(limit);
+    if (!Number.isFinite(numericLatitude) ||
+        !Number.isFinite(numericLongitude) ||
+        !Number.isFinite(numericRadius) ||
+        !Number.isFinite(numericLimit) ||
+        numericRadius <= 0 ||
+        numericLimit <= 0) {
+        return res.status(400).json({
+            message: "Valid latitude, longitude and radius are required",
+        });
+    }
+    let normalizedSearch = "";
+    let searchRegex = null;
+    if (search && typeof search === "string") {
+        normalizedSearch = search.trim().slice(0, MAX_SEARCH_LENGTH);
+        if (normalizedSearch) {
+            searchRegex = new RegExp(escapeRegex(normalizedSearch), "i");
+        }
+    }
+    const safeRadius = Math.min(numericRadius, MAX_NEARBY_RADIUS_METERS);
+    const safeLimit = Math.min(Math.trunc(numericLimit), MAX_NEARBY_RESULTS);
+    const nearbyRestaurants = await Restaurant.aggregate([
+        {
+            $geoNear: {
+                near: {
+                    type: "Point",
+                    coordinates: [numericLongitude, numericLatitude],
+                },
+                distanceField: "distance",
+                maxDistance: safeRadius,
+                spherical: true,
+                query: {
+                    isVerified: true,
+                },
+            },
+        },
+        {
+            $addFields: {
+                distanceKm: {
+                    $round: [{ $divide: ["$distance", 1000] }, 2],
+                },
+            },
+        },
+        {
+            $limit: safeLimit,
+        },
+    ]);
+    const nearbyIds = nearbyRestaurants.map((restaurant) => restaurant._id);
+    const restaurantById = new Map(nearbyRestaurants.map((restaurant) => [restaurant._id.toString(), restaurant]));
+    const itemOfferItems = await MenuItems.find({
+        restaurantId: { $in: nearbyIds },
+        isAvailable: true,
+        "offer.isActive": true,
+        "offer.discountPercent": { $gt: 0 },
+    })
+        .limit(MAX_NEARBY_RESULTS)
+        .lean();
+    const restaurantOffers = nearbyRestaurants
+        .filter((restaurant) => restaurant.offer?.isActive && restaurant.offer?.discountPercent > 0)
+        .filter((restaurant) => !searchRegex || searchRegex.test(restaurant.name))
+        .slice(0, safeLimit);
+    const itemOffers = itemOfferItems
+        .map((item) => {
+        const restaurant = restaurantById.get(item.restaurantId.toString());
+        if (!restaurant)
+            return null;
+        return {
+            ...item,
+            restaurant,
+        };
+    })
+        .filter((deal) => {
+        if (!deal)
+            return false;
+        if (!searchRegex)
+            return true;
+        return searchRegex.test(deal.name) || searchRegex.test(deal.restaurant.name);
+    })
+        .slice(0, safeLimit);
+    res.json({
+        success: true,
+        restaurantOffers,
+        itemOffers,
+    });
 });

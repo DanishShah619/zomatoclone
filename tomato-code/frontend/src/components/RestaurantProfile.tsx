@@ -17,7 +17,14 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
   const [name, setName] = useState(restaurant.name);
   const [description, setDescription] = useState(restaurant.description);
   const [isOpen, setIsOpen] = useState(restaurant.isOpen);
+  const [offerActive, setOfferActive] = useState(
+    restaurant.offer?.isActive ?? false
+  );
+  const [offerPercent, setOfferPercent] = useState(
+    String(restaurant.offer?.discountPercent ?? 10)
+  );
   const [loading, setLoading] = useState(false);
+  const [savingOffer, setSavingOffer] = useState(false);
 
   const toggleOpenStatus = async () => {
     try {
@@ -60,6 +67,39 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
       toast.error("Failed to update");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveRestaurantOffer = async () => {
+    const discountPercent = Number(offerPercent);
+
+    if (offerActive && (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent > 90)) {
+      toast.error("Offer must be between 1% and 90%");
+      return;
+    }
+
+    try {
+      setSavingOffer(true);
+      const { data } = await axios.put(
+        `${restaurantService}/api/restaurant/offer`,
+        {
+          isActive: offerActive,
+          discountPercent,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(data.message);
+      onUpdate(data.restaurant);
+    } catch (error: any) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to update offer");
+    } finally {
+      setSavingOffer(false);
     }
   };
 
@@ -176,6 +216,52 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
             )}
           </div>
         </div>
+
+        {isSeller && (
+          <div className="rounded-lg border bg-red-50/50 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">
+                  Restaurant-wide offer
+                </p>
+                <p className="text-xs text-gray-500">
+                  Applies to final bill items without item-specific offers.
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={offerActive}
+                  onChange={(e) => setOfferActive(e.target.checked)}
+                />
+                Active
+              </label>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={offerPercent}
+                onChange={(e) => setOfferPercent(e.target.value)}
+                disabled={!offerActive}
+                className="w-28 rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100"
+              />
+              <span className="flex items-center text-sm text-gray-500">
+                % off
+              </span>
+              <button
+                onClick={saveRestaurantOffer}
+                disabled={savingOffer}
+                className="ml-auto rounded-lg bg-[#E23744] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingOffer ? "Saving..." : "Save Offer"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <p className="text-xs text-gray-400">
           Created on {new Date(restaurant.createdAt).toLocaleDateString()}

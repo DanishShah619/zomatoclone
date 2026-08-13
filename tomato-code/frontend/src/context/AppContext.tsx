@@ -46,6 +46,8 @@ export const AppProvider = ({ children }: AppProviderProps) => {
 
   const [cart, setCart] = useState<ICart[]>([]);
   const [subTotal, setSubTotal] = useState(0);
+  const [originalSubTotal, setOriginalSubTotal] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [quauntity, setQuauntity] = useState(0);
 
   async function fetchCart() {
@@ -59,6 +61,8 @@ export const AppProvider = ({ children }: AppProviderProps) => {
 
       setCart(data.cart || []);
       setSubTotal(data.subtotal || 0);
+      setOriginalSubTotal(data.originalSubtotal || data.subtotal || 0);
+      setDiscountAmount(data.discountAmount || 0);
       setQuauntity(data.cartLength);
     } catch (error) {
       console.log(error);
@@ -130,6 +134,8 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         fetchCart,
         quauntity,
         subTotal,
+        originalSubTotal,
+        discountAmount,
       }}
     >
       {children}

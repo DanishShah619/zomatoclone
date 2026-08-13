@@ -14,10 +14,15 @@ export interface IOrder extends Document {
     itemId: string;
     name: string;
     price: number;
+    originalPrice: number;
+    discountPercent: number;
+    discountAmount: number;
     quauntity: number;
   }[];
 
+  originalSubtotal: number;
   subtotal: number;
+  discountAmount: number;
   deliveryFee: number;
   platfromFee: number;
   totalAmount: number;
@@ -90,11 +95,16 @@ const OrderSchema = new Schema<IOrder>(
         itemId: String,
         name: String,
         price: Number,
+        originalPrice: Number,
+        discountPercent: Number,
+        discountAmount: Number,
         quauntity: Number,
       },
     ],
 
+    originalSubtotal: Number,
     subtotal: Number,
+    discountAmount: Number,
     deliveryFee: Number,
     platfromFee: Number,
     totalAmount: Number,

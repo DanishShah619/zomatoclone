@@ -28,6 +28,25 @@ const parseLimit = (value: unknown, defaultLimit = 25, maxLimit = 50) => {
   return Math.min(parsed, maxLimit);
 };
 
+const getDiscountedUnitPrice = (item: IMenuItem, restaurant: IRestaurant) => {
+  const itemOffer = item.offer;
+  const restaurantOffer = restaurant.offer;
+  const discountPercent =
+    itemOffer?.isActive && itemOffer.discountPercent > 0
+      ? itemOffer.discountPercent
+      : restaurantOffer?.isActive && restaurantOffer.discountPercent > 0
+      ? restaurantOffer.discountPercent
+      : 0;
+  const discountAmount = Math.round((item.price * discountPercent) / 100);
+
+  return {
+    originalPrice: item.price,
+    price: Math.max(item.price - discountAmount, 0),
+    discountPercent,
+    discountAmount,
+  };
+};
+
 export const createOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
   const user = req.user;
   if (!user) {
@@ -121,7 +140,9 @@ export const createOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
     restaurant.autoLocation.coordinates[0]
   );
 
+  let originalSubtotal = 0;
   let subtotal = 0;
+  let discountAmount = 0;
 
   const orderItems = cartItems.map((cart) => {
     const item = cart.itemId;
@@ -130,14 +151,20 @@ export const createOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
       throw new Error("Invalid cart item");
     }
 
-    const itemTotal = item.price * cart.quauntity;
+    const pricedItem = getDiscountedUnitPrice(item, restaurant);
+    const itemTotal = pricedItem.price * cart.quauntity;
 
+    originalSubtotal += pricedItem.originalPrice * cart.quauntity;
     subtotal += itemTotal;
+    discountAmount += pricedItem.discountAmount * cart.quauntity;
 
     return {
       itemId: item._id.toString(),
       name: item.name,
-      price: item.price,
+      price: pricedItem.price,
+      originalPrice: pricedItem.originalPrice,
+      discountPercent: pricedItem.discountPercent,
+      discountAmount: pricedItem.discountAmount,
       quauntity: cart.quauntity,
     };
   });
@@ -160,7 +187,9 @@ export const createOrder = TryCatch(async (req: AuthenticatedRequest, res) => {
     distance,
     riderAmount,
     items: orderItems,
+    originalSubtotal,
     subtotal,
+    discountAmount,
     deliveryFee,
     platfromFee,
     totalAmount,

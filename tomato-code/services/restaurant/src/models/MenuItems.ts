@@ -7,6 +7,10 @@ export interface IMenuItem extends Document {
   image?: string;
   price: number;
   isAvailable: boolean;
+  offer: {
+    isActive: boolean;
+    discountPercent: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,10 +45,24 @@ const schema = new Schema<IMenuItem>(
       type: Boolean,
       default: true,
     },
+    offer: {
+      isActive: {
+        type: Boolean,
+        default: false,
+      },
+      discountPercent: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 90,
+      },
+    },
   },
   {
     timestamps: true,
   }
 );
+
+schema.index({ "offer.isActive": 1 });
 
 export default mongoose.model<IMenuItem>("MenuItem", schema);

@@ -27,7 +27,14 @@ export interface AppContextType {
   cart: ICart[] | null;
   fetchCart: () => Promise<void>;
   subTotal: number;
+  originalSubTotal: number;
+  discountAmount: number;
   quauntity: number;
+}
+
+export interface Offer {
+  isActive: boolean;
+  discountPercent: number;
 }
 
 export interface IRestaurant {
@@ -45,6 +52,7 @@ export interface IRestaurant {
     formattedAddress: string;
   };
   isOpen: boolean;
+  offer?: Offer;
   createdAt: Date;
 }
 
@@ -56,6 +64,7 @@ export interface IMenuItem {
   image?: string;
   price: number;
   isAvailable: boolean;
+  offer?: Offer;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,10 +94,15 @@ export interface IOrder {
     itemId: string;
     name: string;
     price: number;
+    originalPrice?: number;
+    discountPercent?: number;
+    discountAmount?: number;
     quauntity: number;
   }[];
 
+  originalSubtotal?: number;
   subtotal: number;
+  discountAmount?: number;
   deliveryFee: number;
   platfromFee: number;
   totalAmount: number;

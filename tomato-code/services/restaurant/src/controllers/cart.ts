@@ -3,6 +3,25 @@ import { AuthenticatedRequest } from "../middlewares/isAuth.js";
 import TryCatch from "../middlewares/trycatch.js";
 import Cart from "../models/Cart.js";
 
+const getDiscountedUnitPrice = (item: any, restaurant: any) => {
+  const itemOffer = item.offer;
+  const restaurantOffer = restaurant.offer;
+  const discountPercent =
+    itemOffer?.isActive && itemOffer.discountPercent > 0
+      ? itemOffer.discountPercent
+      : restaurantOffer?.isActive && restaurantOffer.discountPercent > 0
+      ? restaurantOffer.discountPercent
+      : 0;
+  const discountAmount = Math.round((item.price * discountPercent) / 100);
+
+  return {
+    originalPrice: item.price,
+    price: Math.max(item.price - discountAmount, 0),
+    discountPercent,
+    discountAmount,
+  };
+};
+
 export const addToCart = TryCatch(async (req: AuthenticatedRequest, res) => {
   if (!req.user) {
     return res.status(401).json({
@@ -64,19 +83,27 @@ export const fetchMyCart = TryCatch(async (req: AuthenticatedRequest, res) => {
     .populate("restaurantId");
 
   let subtotal = 0;
+  let originalSubtotal = 0;
+  let discountAmount = 0;
   let cartLength = 0;
 
   for (const cartItem of cartItems) {
     const item: any = cartItem.itemId;
+    const restaurant: any = cartItem.restaurantId;
+    const pricedItem = getDiscountedUnitPrice(item, restaurant);
 
-    subtotal += item.price * cartItem.quauntity;
+    originalSubtotal += pricedItem.originalPrice * cartItem.quauntity;
+    subtotal += pricedItem.price * cartItem.quauntity;
+    discountAmount += pricedItem.discountAmount * cartItem.quauntity;
     cartLength += cartItem.quauntity;
   }
 
   return res.json({
     success: true,
     cartLength,
+    originalSubtotal,
     subtotal,
+    discountAmount,
     cart: cartItems,
   });
 });

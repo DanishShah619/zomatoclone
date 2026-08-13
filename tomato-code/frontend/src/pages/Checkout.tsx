@@ -16,7 +16,8 @@ interface Address {
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const Checkout = () => {
-  const { cart, subTotal, quauntity } = useAppData();
+  const { cart, subTotal, originalSubTotal, discountAmount, quauntity } =
+    useAppData();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -66,6 +67,20 @@ const Checkout = () => {
   const deliveryFee = subTotal < 250 ? 49 : 0;
   const platformFee = 7;
   const grandTotal = subTotal + deliveryFee + platformFee;
+  const getEffectivePrice = (item: IMenuItem) => {
+    const discountPercent =
+      item.offer?.isActive && item.offer.discountPercent > 0
+        ? item.offer.discountPercent
+        : restaurant.offer?.isActive && restaurant.offer.discountPercent > 0
+        ? restaurant.offer.discountPercent
+        : 0;
+    const discount = Math.round((item.price * discountPercent) / 100);
+
+    return {
+      discountPercent,
+      price: Math.max(item.price - discount, 0),
+    };
+  };
 
   const createOrder = async () => {
     if (!selectedAddressId) return null;
@@ -179,13 +194,19 @@ const Checkout = () => {
 
         {cart.map((cartItem: ICart) => {
           const item = cartItem.itemId as IMenuItem;
+          const effectivePrice = getEffectivePrice(item);
 
           return (
             <div className="flex justify-between text-sm" key={cartItem._id}>
               <span>
                 {item.name} x {cartItem.quauntity}
+                {effectivePrice.discountPercent > 0 && (
+                  <span className="ml-2 text-xs text-green-600">
+                    {effectivePrice.discountPercent}% off
+                  </span>
+                )}
               </span>
-              <span>Rs. {item.price * cartItem.quauntity}</span>
+              <span>Rs. {effectivePrice.price * cartItem.quauntity}</span>
             </div>
           );
         })}
@@ -194,6 +215,16 @@ const Checkout = () => {
 
         <div className="flex justify-between text-sm">
           <span>Items ({quauntity})</span>
+          <span>Rs. {originalSubTotal}</span>
+        </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-sm text-green-600">
+            <span>Offer discount</span>
+            <span>- Rs. {discountAmount}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-sm">
+          <span>Discounted subtotal</span>
           <span>Rs. {subTotal}</span>
         </div>
         <div className="flex justify-between text-sm">

@@ -15,8 +15,14 @@ interface MenuItemsProps {
   isSeller: boolean;
 }
 
+const getDiscountedPrice = (price: number, discountPercent = 0) =>
+  Math.max(price - Math.round((price * discountPercent) / 100), 0);
+
 const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [offerDrafts, setOfferDrafts] = useState<Record<string, string>>({});
+  const [savingOfferId, setSavingOfferId] = useState<string | null>(null);
+  const { fetchCart } = useAppData();
 
   const handleDelete = async (itemId: string) => {
     const confirm = window.confirm("Are you sure you want to delete this item");
@@ -37,7 +43,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
     }
   };
 
-  const toggleAvailiblity = async (itemId: string) => {
+  const toggleAvailability = async (itemId: string) => {
     try {
       const { data } = await axios.put(
         `${restaurantService}/api/item/status/${itemId}`,
@@ -57,7 +63,45 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
     }
   };
 
-  const { fetchCart } = useAppData();
+  const saveItemOffer = async (
+    itemId: string,
+    isActive: boolean,
+    discountPercent: number
+  ) => {
+    if (
+      isActive &&
+      (!Number.isFinite(discountPercent) ||
+        discountPercent <= 0 ||
+        discountPercent > 90)
+    ) {
+      toast.error("Offer must be between 1% and 90%");
+      return;
+    }
+
+    try {
+      setSavingOfferId(itemId);
+      const { data } = await axios.put(
+        `${restaurantService}/api/item/offer/${itemId}`,
+        {
+          isActive,
+          discountPercent,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(data.message);
+      onItemDeleted();
+    } catch (error: any) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to update offer");
+    } finally {
+      setSavingOfferId(null);
+    }
+  };
 
   const addToCart = async (restaurantId: string, itemId: string) => {
     try {
@@ -79,15 +123,23 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
       toast.success(data.message);
       fetchCart();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to add item");
     } finally {
       setLoadingItemId(null);
     }
   };
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
         const isLoading = loadingItemId === item._id;
+        const offerActive = Boolean(
+          item.offer?.isActive && item.offer.discountPercent > 0
+        );
+        const offerPercent = item.offer?.discountPercent || 0;
+        const draftPercent =
+          offerDrafts[item._id] ?? String(item.offer?.discountPercent || 10);
+        const discountedPrice = getDiscountedPrice(item.price, offerPercent);
 
         return (
           <div
@@ -109,6 +161,11 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                   Not Available
                 </span>
               )}
+              {offerActive && (
+                <span className="absolute -left-2 -top-2 rounded-full bg-[#E23744] px-2 py-1 text-[10px] font-bold text-white shadow">
+                  {offerPercent}% OFF
+                </span>
+              )}
             </div>
 
             <div className="flex flex-1 flex-col justify-between">
@@ -121,13 +178,20 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                 )}
               </div>
 
-              <div className="flex items-center justify-between ">
-                <p className="font-medium">₹{item.price}</p>
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Rs. {discountedPrice}</p>
+                  {offerActive && (
+                    <p className="text-xs text-gray-400 line-through">
+                      Rs. {item.price}
+                    </p>
+                  )}
+                </div>
 
                 {isSeller && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => toggleAvailiblity(item._id)}
+                      onClick={() => toggleAvailability(item._id)}
                       className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
                     >
                       {item.isAvailable ? (
@@ -164,6 +228,43 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                   </button>
                 )}
               </div>
+
+              {isSeller && (
+                <div className="mt-3 rounded-lg border bg-gray-50 p-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={90}
+                      value={draftPercent}
+                      onChange={(e) =>
+                        setOfferDrafts((prev) => ({
+                          ...prev,
+                          [item._id]: e.target.value,
+                        }))
+                      }
+                      className="w-16 rounded border px-2 py-1 text-xs"
+                    />
+                    <span className="text-xs text-gray-500">% off</span>
+                    <button
+                      onClick={() =>
+                        saveItemOffer(item._id, true, Number(draftPercent))
+                      }
+                      disabled={savingOfferId === item._id}
+                      className="ml-auto rounded bg-[#E23744] px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      Apply
+                    </button>
+                    <button
+                      onClick={() => saveItemOffer(item._id, false, 0)}
+                      disabled={savingOfferId === item._id || !offerActive}
+                      className="rounded border px-2 py-1 text-xs font-semibold text-gray-600 disabled:opacity-50"
+                    >
+                      Off
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );

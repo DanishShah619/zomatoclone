@@ -10,7 +10,14 @@ import { BiMinus, BiPlus } from "react-icons/bi";
 import { TbTrash } from "react-icons/tb";
 
 const Cart = () => {
-  const { cart, subTotal, quauntity, fetchCart } = useAppData();
+  const {
+    cart,
+    subTotal,
+    originalSubTotal,
+    discountAmount,
+    quauntity,
+    fetchCart,
+  } = useAppData();
   const navigate = useNavigate();
 
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
@@ -25,12 +32,23 @@ const Cart = () => {
   }
 
   const restaurant = cart[0].restaurantId as IRestaurant;
-
   const deliveryFee = subTotal < 250 ? 49 : 0;
-
   const platfromFee = 7;
-
   const grandTotal = subTotal + deliveryFee + platfromFee;
+  const getEffectivePrice = (item: IMenuItem) => {
+    const discountPercent =
+      item.offer?.isActive && item.offer.discountPercent > 0
+        ? item.offer.discountPercent
+        : restaurant.offer?.isActive && restaurant.offer.discountPercent > 0
+        ? restaurant.offer.discountPercent
+        : 0;
+    const discount = Math.round((item.price * discountPercent) / 100);
+
+    return {
+      discountPercent,
+      price: Math.max(item.price - discount, 0),
+    };
+  };
 
   const increaseQty = async (itemId: string) => {
     try {
@@ -46,7 +64,7 @@ const Cart = () => {
       );
 
       await fetchCart();
-    } catch (error) {
+    } catch {
       toast.error("something went wrong");
     } finally {
       setLoadingItemId(null);
@@ -67,7 +85,7 @@ const Cart = () => {
       );
 
       await fetchCart();
-    } catch (error) {
+    } catch {
       toast.error("something went wrong");
     } finally {
       setLoadingItemId(null);
@@ -77,6 +95,7 @@ const Cart = () => {
   const clearCart = async () => {
     const confirm = window.confirm("Are you sure you want to clear you cart?");
     if (!confirm) return;
+
     try {
       setClearingCart(true);
       await axios.delete(`${restaurantService}/api/cart/clear`, {
@@ -86,16 +105,13 @@ const Cart = () => {
       });
 
       await fetchCart();
-    } catch (error) {
+    } catch {
       toast.error("something went wrong");
     } finally {
       setClearingCart(false);
     }
   };
 
-  const checkout = () => {
-    navigate("/checkout");
-  };
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 space-y-6">
       <div className="rounded-xl bg-white p-4 shadow-sm">
@@ -109,6 +125,7 @@ const Cart = () => {
         {cart.map((cartItem: ICart) => {
           const item = cartItem.itemId as IMenuItem;
           const isLoading = loadingItemId === item._id;
+          const effectivePrice = getEffectivePrice(item);
 
           return (
             <div
@@ -123,7 +140,14 @@ const Cart = () => {
 
               <div className="flex-1">
                 <h3 className="font-semibold">{item.name}</h3>
-                <p className="text-sm text-gray-500">₹{item.price}</p>
+                <p className="text-sm text-gray-500">
+                  Rs. {effectivePrice.price}
+                  {effectivePrice.discountPercent > 0 && (
+                    <span className="ml-2 text-xs text-green-600">
+                      {effectivePrice.discountPercent}% off
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="flex items-center gap-3">
@@ -152,8 +176,8 @@ const Cart = () => {
                 </button>
               </div>
 
-              <p className="w-20 text-right font-medium">
-                ₹{item.price * cartItem.quauntity}
+              <p className="w-24 text-right font-medium">
+                Rs. {effectivePrice.price * cartItem.quauntity}
               </p>
             </div>
           );
@@ -168,30 +192,40 @@ const Cart = () => {
 
         <div className="flex justify-between text-sm">
           <span>Subtotal</span>
-          <span>₹{subTotal}</span>
+          <span>Rs. {originalSubTotal}</span>
+        </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-sm text-green-600">
+            <span>Offer discount</span>
+            <span>- Rs. {discountAmount}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-sm">
+          <span>Discounted subtotal</span>
+          <span>Rs. {subTotal}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span>Delivery Fee</span>
-          <span>{deliveryFee === 0 ? "Free" : `₹${deliveryFee}`}</span>
+          <span>{deliveryFee === 0 ? "Free" : `Rs. ${deliveryFee}`}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span>PlatFrom fee</span>
-          <span>₹{platfromFee}</span>
+          <span>Platform fee</span>
+          <span>Rs. {platfromFee}</span>
         </div>
 
         {subTotal < 250 && (
           <p className="text-xs text-gray-500">
-            Add Item worth ₹{250 - subTotal} more to get Free delivery
+            Add item worth Rs. {250 - subTotal} more to get free delivery
           </p>
         )}
 
         <div className="flex justify-between text-base font-semibold border-t pt-2">
           <span>Grand Total</span>
-          <span>₹{grandTotal}</span>
+          <span>Rs. {grandTotal}</span>
         </div>
 
         <button
-          onClick={checkout}
+          onClick={() => navigate("/checkout")}
           className={`mt-3 w-full rounded-lg bg-[#E23744] py-3 text-sm font-semibold text-white hover:bg-red-800 ${
             !restaurant.isOpen ? "opacity-50 cursor-not-allowed" : ""
           }`}
