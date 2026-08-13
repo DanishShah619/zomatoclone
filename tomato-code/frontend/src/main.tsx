@@ -21,12 +21,12 @@ export const adminService = import.meta.env.VITE_ADMIN_SERVICE_URL || apiBaseUrl
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 if (!googleClientId) {
-  throw new Error("Missing VITE_GOOGLE_CLIENT_ID");
+  console.error("Missing VITE_GOOGLE_CLIENT_ID");
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={googleClientId}>
+    <GoogleOAuthProvider clientId={googleClientId || "missing-google-client-id"}>
       <AppProvider>
         <SocketProvider>
           <App />

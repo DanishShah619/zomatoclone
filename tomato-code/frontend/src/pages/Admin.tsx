@@ -2,7 +2,6 @@ import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { BiLogOut } from "react-icons/bi";
-import { useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppContext";
 import { adminService } from "../main";
 import AdminRestaurantCard from "../components/AdminRestaurantCard";
@@ -17,14 +16,13 @@ const Admin = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<"restaurant" | "rider">("restaurant");
   const { setIsAuth, setUser } = useAppData();
-  const navigate = useNavigate();
 
   const logoutHandler = () => {
     localStorage.setItem("token", "");
     setUser(null);
     setIsAuth(false);
-    navigate("/login");
     toast.success("Logged out successfully");
+    window.location.assign("/login");
   };
 
   const fetchData = useCallback(async (showInitialLoader = false) => {
