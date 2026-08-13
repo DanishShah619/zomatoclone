@@ -1,10 +1,10 @@
 import { motion } from "motion/react";
 import React, {
-  HTMLAttributes,
   useCallback,
   useMemo,
   useRef,
 } from "react";
+import type { HTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 
 interface WarpBackgroundProps extends HTMLAttributes<HTMLDivElement> {
