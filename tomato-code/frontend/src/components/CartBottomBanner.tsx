@@ -3,7 +3,7 @@ import { BiCart, BiChevronRight } from "react-icons/bi";
 import { useAppData } from "../context/AppContext";
 import type { IRestaurant } from "../types";
 
-const HIDDEN_PATHS = ["/cart", "/checkout", "/ordersuccess"];
+const HOME_PATH = "/restaurants";
 
 const CartBottomBanner = () => {
   const { cart, quauntity, subTotal, discountAmount } = useAppData();
@@ -11,7 +11,7 @@ const CartBottomBanner = () => {
   const location = useLocation();
 
   if (!cart || cart.length === 0 || quauntity <= 0) return null;
-  if (HIDDEN_PATHS.includes(location.pathname)) return null;
+  if (location.pathname !== HOME_PATH) return null;
 
   const restaurant = cart[0].restaurantId as IRestaurant;
 
