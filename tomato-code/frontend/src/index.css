@@ -1,25 +1,71 @@
 @import "tailwindcss";
 
+.shiny-brand-text {
+  background: linear-gradient(
+    112deg,
+    #020617 0%,
+    #0f172a 34%,
+    #6b7280 48%,
+    #020617 62%,
+    #000000 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: "Arial Black", "Inter", "Segoe UI", system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.38);
+  animation: brand-shine 7.5s ease-in-out infinite;
+}
+
+.brand-logo-text {
+  display: inline-block;
+  font-size: 2.25rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nav-link-type {
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  transition: color 180ms ease;
+}
+
 .flip-char {
   animation: flip-text var(--flip-duration) var(--flip-delay)
     var(--flip-iteration);
   transform-origin: 50% 55%;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+@keyframes brand-shine {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 @keyframes flip-text {
   0%,
-  24%,
+  36%,
   100% {
     transform: rotateX(0deg);
   }
 
-  40% {
-    transform: rotateX(90deg);
-    color: #fb923c;
+  48% {
+    transform: rotateX(72deg);
   }
 
-  55% {
+  62% {
     transform: rotateX(0deg);
-    color: #e23744;
   }
 }

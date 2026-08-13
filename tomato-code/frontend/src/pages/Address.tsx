@@ -5,7 +5,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { restaurantService } from "../main";
@@ -84,16 +84,38 @@ const AddAddressPage = () => {
   const [formattedAddress, setFormattedAddress] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+  const geocodeRequestId = useRef(0);
+  const geocodeAbortRef = useRef<AbortController | null>(null);
 
   const fetchFormattedAddress = async (lat: number, lng: number) => {
+    geocodeAbortRef.current?.abort();
+
+    const requestId = geocodeRequestId.current + 1;
+    geocodeRequestId.current = requestId;
+    const controller = new AbortController();
+    geocodeAbortRef.current = controller;
+
     try {
+      setResolvingAddress(true);
+      setFormattedAddress("");
+
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${lat}&lon=${lng}`,
+        { signal: controller.signal }
       );
       const data = await res.json();
+
+      if (requestId !== geocodeRequestId.current) return;
+
       setFormattedAddress(data.display_name || "");
-    } catch {
+    } catch (error: any) {
+      if (error?.name === "AbortError") return;
       toast.error("Failed to fetch address");
+    } finally {
+      if (requestId === geocodeRequestId.current) {
+        setResolvingAddress(false);
+      }
     }
   };
 
@@ -120,16 +142,25 @@ const AddAddressPage = () => {
 
   useEffect(() => {
     fetchAddresses();
+
+    return () => {
+      geocodeAbortRef.current?.abort();
+    };
   }, []);
 
   const addAddress = async () => {
     if (
       !mobile ||
       !formattedAddress ||
+      resolvingAddress ||
       latitude === null ||
       longitude === null
     ) {
-      toast.error("Please select location on map");
+      toast.error(
+        resolvingAddress
+          ? "Please wait while we confirm your address"
+          : "Please select location on map"
+      );
       return;
     }
 
@@ -204,9 +235,9 @@ const AddAddressPage = () => {
         </MapContainer>
       </div>
 
-      {formattedAddress && (
+      {(formattedAddress || resolvingAddress) && (
         <div className="rounded-lg border bg-green-50 p-3 text-sm">
-          {formattedAddress}
+          {resolvingAddress ? "Finding address for selected location..." : formattedAddress}
         </div>
       )}
 
@@ -219,7 +250,7 @@ const AddAddressPage = () => {
       />
 
       <button
-        disabled={adding}
+        disabled={adding || resolvingAddress}
         onClick={addAddress}
         className="flex items-center justify-center gap-2 rounded-lg bg-[#E23744] px-4 py-3 text-white hover:bg-[#d32f3a] disabled:opacity-50"
       >

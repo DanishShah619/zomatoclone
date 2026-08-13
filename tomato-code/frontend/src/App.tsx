@@ -18,6 +18,7 @@ import Orders from "./pages/Orders";
 import OrderPage from "./pages/OrderPage";
 import RiderDashboard from "./pages/RiderDashboard";
 import Admin from "./pages/Admin";
+import BestDeals from "./pages/BestDeals";
 
 const CustomerLayout = () => (
   <>
@@ -58,6 +59,7 @@ const App = () => {
             <Route path="/select-role" element={<SelectRole />} />
             <Route element={<CustomerLayout />}>
               <Route path="/restaurants" element={<Home />} />
+              <Route path="/best-deals" element={<BestDeals />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/order/:id" element={<OrderPage />} />
               <Route path="/ordersuccess" element={<OrderSuccess />} />

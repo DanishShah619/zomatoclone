@@ -3,9 +3,16 @@ import { useAppData } from "../context/AppContext";
 import { useEffect, useState } from "react";
 import { CgShoppingCart } from "react-icons/cg";
 import { BiMapPin, BiSearch } from "react-icons/bi";
-import FlipText from "./ui/FlipText";
+import { RandomLetterSwap } from "./ui/random-letter-swap";
 
 const logoSrc = "/Gemini_Generated_Image_wjibu7wjibu7wjib.png";
+
+const navLinks = [
+  { label: "Home", to: "/restaurants" },
+  { label: "Best Deals", to: "/best-deals" },
+  { label: "My Orders", to: "/orders" },
+  { label: "My Account", to: "/account" },
+];
 
 const Navbar = () => {
   const { isAuth, city, quauntity } = useAppData();
@@ -32,17 +39,42 @@ const Navbar = () => {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link
           to={isAuth ? "/restaurants" : "/"}
-          className="flex items-center gap-2 text-2xl font-bold text-[#E23744] cursor-pointer"
+          className="flex min-w-[260px] items-center gap-4 cursor-pointer"
         >
           <img
             src={logoSrc}
             alt="Tomato logo"
-            className="h-10 w-10 rounded-full object-cover"
+            className="h-14 w-auto max-w-[128px] shrink-0 object-contain"
           />
-          <FlipText duration={2.4} className="text-[#E23744]">
+          <span className="shiny-brand-text brand-logo-text">
             Tomato
-          </FlipText>
+          </span>
         </Link>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          {navLinks.map((item) => {
+            const active = currLocation.pathname === item.to;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`nav-link-type text-[15px] ${
+                  active ? "text-[#E23744]" : "text-slate-600"
+                }`}
+              >
+                <RandomLetterSwap
+                  label={item.label}
+                  staggerDuration={0.045}
+                  transition={{
+                    duration: 0.82,
+                  }}
+                  className="hover:text-[#E23744]"
+                />
+              </Link>
+            );
+          })}
+        </nav>
 
         <div className="flex items-center gap-4">
           <Link to={"/cart"} className="relative">
@@ -52,17 +84,37 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {isAuth ? (
-            <Link to="/account" className="font-medium text-[#E23744]">
-              Account
-            </Link>
-          ) : (
+          {!isAuth && (
             <Link to="/Login" className="font-medium text-[#E23744]">
               Login
             </Link>
           )}
         </div>
       </div>
+
+      {isAuth && (
+        <nav className="flex gap-4 overflow-x-auto border-t px-4 py-3 md:hidden">
+          {navLinks.map((item) => {
+            const active = currLocation.pathname === item.to;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`nav-link-type shrink-0 text-sm ${
+                  active ? "text-[#E23744]" : "text-slate-600"
+                }`}
+              >
+                <RandomLetterSwap
+                  label={item.label}
+                  staggerDuration={0.04}
+                  transition={{ duration: 0.78 }}
+                />
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {/* search bar */}
       {isHomePage && (
