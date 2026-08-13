@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/protectedRote";
 import PublicRoute from "./components/publicRoute";
 import SelectRole from "./pages/SelectRole";
 import Navbar from "./components/navbar";
+import CartBottomBanner from "./components/CartBottomBanner";
 import Account from "./pages/Account";
 import { useAppData } from "./context/AppContext";
 import Restaurant from "./pages/Restaurant";
@@ -24,6 +25,7 @@ const CustomerLayout = () => (
   <>
     <Navbar />
     <Outlet />
+    <CartBottomBanner />
   </>
 );
 
