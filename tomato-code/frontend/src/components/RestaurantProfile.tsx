@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { IRestaurant } from "../types";
 import axios from "axios";
 import { restaurantService } from "../main";
@@ -62,6 +62,7 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
 
       toast.success(data.message);
       setIsOpen(data.restaurant.isOpen);
+      onUpdate(data.restaurant);
     } catch (error: any) {
       console.log(error);
       toast.error(error.response.data.message);
@@ -105,6 +106,12 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setIsOpen(restaurant.isOpen);
+    setOfferActive(restaurant.offer?.isActive ?? false);
+    setOfferPercent(String(restaurant.offer?.discountPercent ?? 10));
+  }, [restaurant.isOpen, restaurant.offer?.isActive, restaurant.offer?.discountPercent]);
 
   const saveRestaurantOffer = async () => {
     const discountPercent = Number(offerPercent);

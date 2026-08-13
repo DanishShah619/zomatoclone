@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppData } from "../context/AppContext";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { restaurantService, utilsService } from "../main";
 import type { ICart, IMenuItem, IRestaurant } from "../types";
 import toast from "react-hot-toast";
@@ -26,6 +27,7 @@ const Checkout = () => {
   const [loadingAddress, setLoadingAddress] = useState(true);
   const [loadingStripe, setLoadingStripe] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAddresses = async () => {
@@ -44,7 +46,12 @@ const Checkout = () => {
           }
         );
 
-        setAddresses(data || []);
+        const savedAddresses = data || [];
+        setAddresses(savedAddresses);
+
+        if (savedAddresses.length > 0) {
+          setSelectedAddressId((current) => current || savedAddresses[0]._id);
+        }
       } catch (error) {
         console.log(error);
       } finally {
@@ -160,9 +167,18 @@ const Checkout = () => {
         {loadingAddress ? (
           <p className="text-sm text-gray-500">Loading addresses...</p>
         ) : addresses.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No address found. Please add one
-          </p>
+          <div className="space-y-3 rounded-lg border border-dashed p-4">
+            <p className="text-sm text-gray-500">
+              No address found. Add a delivery address before paying.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/address")}
+              className="rounded-lg bg-[#E23744] px-4 py-2 text-sm font-semibold text-white hover:bg-[#d32f3a]"
+            >
+              Add delivery address
+            </button>
+          </div>
         ) : (
           addresses.map((address) => (
             <label
@@ -250,6 +266,11 @@ const Checkout = () => {
 
       <div className="rounded-xl bg-white p-4 shadow-sm space-y-3">
         <h3 className="font-semibold">Payment Method</h3>
+        {!selectedAddressId && (
+          <p className="text-sm text-gray-500">
+            Select or add a delivery address to enable Stripe payment.
+          </p>
+        )}
 
         <button
           disabled={!selectedAddressId || loadingStripe || creatingOrder}

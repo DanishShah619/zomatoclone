@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { IMenuItem, IRestaurant } from "../types";
 import axios from "axios";
 import { restaurantService } from "../main";
@@ -9,14 +9,17 @@ import AddMenuItem from "../components/AddMenuItem";
 import RestaurantOrders from "../components/RestaurantOrders";
 
 type SellerTab = "menu" | "add-item" | "sales";
+const RESTAURANT_REFRESH_INTERVAL_MS = 10000;
 
 const Restaurant = () => {
   const [restaurant, setRestaurant] = useState<IRestaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<SellerTab>("menu");
 
-  const fetchMyRestaurant = async () => {
+  const fetchMyRestaurant = useCallback(async (showLoader = false) => {
     try {
+      if (showLoader) setLoading(true);
+
       const { data } = await axios.get(
         `${restaurantService}/api/restaurant/my`,
         {
@@ -45,15 +48,32 @@ const Restaurant = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchMyRestaurant();
-  }, []);
+    fetchMyRestaurant(true);
+
+    const intervalId = window.setInterval(() => {
+      fetchMyRestaurant();
+    }, RESTAURANT_REFRESH_INTERVAL_MS);
+
+    const refreshOnFocus = () => {
+      if (!document.hidden) fetchMyRestaurant();
+    };
+
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [fetchMyRestaurant]);
 
   const [menuItems, setMenuItems] = useState<IMenuItem[]>([]);
 
-  const fetchMenuItems = async (restaurantId: string) => {
+  const fetchMenuItems = useCallback(async (restaurantId: string) => {
     try {
       const { data } = await axios.get(
         `${restaurantService}/api/item/all/${restaurantId}`,
@@ -68,13 +88,23 @@ const Restaurant = () => {
     } catch (error) {
       console.log(error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (restaurant?._id) {
       fetchMenuItems(restaurant._id);
     }
-  }, [restaurant]);
+  }, [restaurant?._id, fetchMenuItems]);
+
+  useEffect(() => {
+    if (!restaurant?._id) return;
+
+    const intervalId = window.setInterval(() => {
+      fetchMenuItems(restaurant._id);
+    }, RESTAURANT_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [restaurant?._id, fetchMenuItems]);
 
   if (loading)
     return (
