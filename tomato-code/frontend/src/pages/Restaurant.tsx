@@ -117,6 +117,14 @@ const Restaurant = () => {
   if (!restaurant) {
     return <AddRestaurant fetchMyRestaurant={fetchMyRestaurant} />;
   }
+
+  const sellerCuisineOptions =
+    restaurant.cuisines && restaurant.cuisines.length > 0
+      ? restaurant.cuisines
+      : Array.from(
+          new Set(menuItems.map((item) => item.cuisine).filter(Boolean))
+        ) as string[];
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 space-y-6">
       <RestaurantProfile
@@ -154,10 +162,14 @@ const Restaurant = () => {
               items={menuItems}
               onItemDeleted={() => fetchMenuItems(restaurant._id)}
               isSeller={true}
+              cuisineOptions={sellerCuisineOptions}
             />
           )}
           {tab === "add-item" && (
-            <AddMenuItem onItemAdded={() => fetchMenuItems(restaurant._id)} />
+            <AddMenuItem
+              onItemAdded={() => fetchMenuItems(restaurant._id)}
+              cuisineOptions={sellerCuisineOptions}
+            />
           )}
           {tab === "sales" && <RestaurantSales restaurantId={restaurant._id} />}
         </div>

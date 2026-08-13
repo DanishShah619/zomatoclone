@@ -11,6 +11,7 @@ const RestaurantPage = () => {
 
   const [restaurant, setRestaurant] = useState<IRestaurant | null>(null);
   const [menuItems, setMenuItems] = useState<IMenuItem[]>([]);
+  const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [loading, setLoading] = useState(true);
 
   const fetchRestaurant = async () => {
@@ -71,6 +72,20 @@ const RestaurantPage = () => {
       </div>
     );
   }
+
+  const cuisineOptions = Array.from(
+    new Set(
+      [
+        ...(restaurant.cuisines || []),
+        ...menuItems.map((item) => item.cuisine).filter(Boolean),
+      ] as string[]
+    )
+  );
+  const visibleMenuItems =
+    selectedCuisine === "All"
+      ? menuItems
+      : menuItems.filter((item) => item.cuisine === selectedCuisine);
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 space-y-6">
       <RestaurantProfile
@@ -80,11 +95,34 @@ const RestaurantPage = () => {
       />
 
       <div className="rounded-xl bg-white shadow-sm p-4">
+        {cuisineOptions.length > 0 && (
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            {["All", ...cuisineOptions].map((cuisine) => (
+              <button
+                type="button"
+                key={cuisine}
+                onClick={() => setSelectedCuisine(cuisine)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  selectedCuisine === cuisine
+                    ? "border-[#E23744] bg-[#E23744] text-white"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-[#E23744]/40 hover:bg-red-50"
+                }`}
+              >
+                {cuisine}
+              </button>
+            ))}
+          </div>
+        )}
         <MenuItems
           isSeller={false}
-          items={menuItems}
+          items={visibleMenuItems}
           onItemDeleted={() => {}}
         />
+        {visibleMenuItems.length === 0 && (
+          <p className="py-8 text-center text-sm text-gray-500">
+            No dishes found for this cuisine
+          </p>
+        )}
       </div>
     </div>
   );

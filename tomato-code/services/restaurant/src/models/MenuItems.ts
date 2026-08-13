@@ -4,6 +4,7 @@ export interface IMenuItem extends Document {
   restaurantId: mongoose.Types.ObjectId;
   name: string;
   description: string;
+  cuisine: string;
   image?: string;
   price: number;
   isAvailable: boolean;
@@ -31,6 +32,12 @@ const schema = new Schema<IMenuItem>(
     },
     description: {
       type: String,
+      trim: true,
+    },
+    cuisine: {
+      type: String,
+      required: true,
+      default: "North Indian",
       trim: true,
     },
     price: {
@@ -64,5 +71,6 @@ const schema = new Schema<IMenuItem>(
 );
 
 schema.index({ "offer.isActive": 1 });
+schema.index({ restaurantId: 1, cuisine: 1 });
 
 export default mongoose.model<IMenuItem>("MenuItem", schema);

@@ -7,6 +7,8 @@ import { restaurantService } from "../main";
 import RestaurantCard from "../components/RestaurantCard";
 import CurrentOrderBanner from "../components/CurrentOrderBanner";
 
+const HOME_REFRESH_INTERVAL_MS = 10000;
+
 const Home = () => {
   const { location } = useAppData();
   const [searchParams] = useSearchParams();
@@ -15,6 +17,7 @@ const Home = () => {
 
   const [restaurants, setRestaurants] = useState<IRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const getDistanceKm = (
     lat1: number,
@@ -37,13 +40,15 @@ const Home = () => {
     return +(R * c).toFixed(2);
   };
 
-  const fetchRestaurants = async () => {
+  const fetchRestaurants = async (showLoader = false) => {
     if (!location?.latitude || !location?.longitude) {
+      setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
 
       const { data } = await axios.get(
         `${restaurantService}/api/restaurant/all`,
@@ -64,11 +69,29 @@ const Home = () => {
       console.log(error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchRestaurants();
+    fetchRestaurants(true);
+
+    const intervalId = window.setInterval(() => {
+      fetchRestaurants();
+    }, HOME_REFRESH_INTERVAL_MS);
+
+    const refreshOnFocus = () => {
+      if (!document.hidden) fetchRestaurants();
+    };
+
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, [location, search]);
 
   if (loading || !location) {
@@ -81,6 +104,11 @@ const Home = () => {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <CurrentOrderBanner />
+      <div className="mb-4 flex justify-end">
+        <span className="text-xs font-medium text-gray-400">
+          {refreshing ? "Refreshing restaurants..." : "Auto-refreshing"}
+        </span>
+      </div>
       {restaurants.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {restaurants.map((res) => {

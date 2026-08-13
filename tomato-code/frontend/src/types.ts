@@ -62,6 +62,7 @@ export interface IMenuItem {
   restaurantId: string;
   name: string;
   description: string;
+  cuisine?: string;
   image?: string;
   price: number;
   isAvailable: boolean;

@@ -10,6 +10,13 @@ const parseDiscountPercent = (value) => {
         return null;
     return Math.round(parsed);
 };
+const getValidCuisine = (value, cuisines) => {
+    if (typeof value !== "string")
+        return null;
+    const cuisine = value.trim();
+    return cuisines.includes(cuisine) ? cuisine : null;
+};
+const getFallbackCuisine = (cuisines) => cuisines && cuisines.length > 0 ? cuisines[0] : "North Indian";
 export const addMenuItem = TryCatch(async (req, res) => {
     if (!req.user) {
         return res.status(401).json({
@@ -22,11 +29,12 @@ export const addMenuItem = TryCatch(async (req, res) => {
             message: "NO Restaurant found",
         });
     }
-    const { name, description, price } = req.body;
+    const { name, description, price, cuisine } = req.body;
     const numericPrice = Number(price);
-    if (!name || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+    const safeCuisine = getValidCuisine(cuisine, restaurant.cuisines || []);
+    if (!name || !Number.isFinite(numericPrice) || numericPrice <= 0 || !safeCuisine) {
         return res.status(400).json({
-            message: "Name and valid price are required",
+            message: "Name, valid price and cuisine are required",
         });
     }
     const file = req.file;
@@ -51,6 +59,7 @@ export const addMenuItem = TryCatch(async (req, res) => {
     const item = await MenuItems.create({
         name,
         description,
+        cuisine: safeCuisine,
         price: numericPrice,
         restaurantId: restaurant._id,
         image: uploadResult.url,
@@ -72,8 +81,60 @@ export const getAllItems = TryCatch(async (req, res) => {
             message: "Valid restaurant id is required",
         });
     }
+    const restaurant = await Restaurant.findById(id).select("cuisines").lean();
+    const fallbackCuisine = getFallbackCuisine(restaurant?.cuisines);
+    await MenuItems.updateMany({
+        restaurantId: id,
+        $or: [
+            { cuisine: { $exists: false } },
+            { cuisine: "" },
+            { cuisine: null },
+        ],
+    }, { $set: { cuisine: fallbackCuisine } });
     const items = await MenuItems.find({ restaurantId: id }).lean();
     res.json(items);
+});
+export const updateMenuItemCuisine = TryCatch(async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({
+            message: "Please login",
+        });
+    }
+    const { itemId } = req.params;
+    const { cuisine } = req.body;
+    if (typeof itemId !== "string" ||
+        !mongoose.Types.ObjectId.isValid(itemId)) {
+        return res.status(400).json({
+            message: "Valid item id is required",
+        });
+    }
+    const item = await MenuItems.findById(itemId);
+    if (!item) {
+        return res.status(404).json({
+            message: "No item found",
+        });
+    }
+    const restaurant = await Restaurant.findOne({
+        _id: item.restaurantId,
+        ownerId: req.user._id,
+    });
+    if (!restaurant) {
+        return res.status(404).json({
+            message: "NO Restaurant found",
+        });
+    }
+    const safeCuisine = getValidCuisine(cuisine, restaurant.cuisines || []);
+    if (!safeCuisine) {
+        return res.status(400).json({
+            message: "Please choose a valid restaurant cuisine",
+        });
+    }
+    item.cuisine = safeCuisine;
+    await item.save();
+    res.json({
+        message: "Item cuisine updated",
+        item,
+    });
 });
 export const deleteMenuItem = TryCatch(async (req, res) => {
     if (!req.user) {

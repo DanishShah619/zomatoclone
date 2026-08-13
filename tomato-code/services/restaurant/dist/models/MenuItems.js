@@ -15,6 +15,12 @@ const schema = new Schema({
         type: String,
         trim: true,
     },
+    cuisine: {
+        type: String,
+        required: true,
+        default: "North Indian",
+        trim: true,
+    },
     price: {
         type: Number,
         required: true,
@@ -43,4 +49,5 @@ const schema = new Schema({
     timestamps: true,
 });
 schema.index({ "offer.isActive": 1 });
+schema.index({ restaurantId: 1, cuisine: 1 });
 export default mongoose.model("MenuItem", schema);

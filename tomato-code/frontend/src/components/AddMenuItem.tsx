@@ -4,10 +4,17 @@ import { restaurantService } from "../main";
 import toast from "react-hot-toast";
 import { BiUpload } from "react-icons/bi";
 
-const AddMenuItem = ({ onItemAdded }: { onItemAdded: () => void }) => {
+const AddMenuItem = ({
+  onItemAdded,
+  cuisineOptions,
+}: {
+  onItemAdded: () => void;
+  cuisineOptions: string[];
+}) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [cuisine, setCuisine] = useState(cuisineOptions[0] || "");
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -15,12 +22,13 @@ const AddMenuItem = ({ onItemAdded }: { onItemAdded: () => void }) => {
     setName("");
     setDescription("");
     setPrice("");
+    setCuisine(cuisineOptions[0] || "");
     setImage(null);
   };
 
   const handleSubmit = async () => {
-    if (!name || !price || !image) {
-      alert("Name price and image is required");
+    if (!name || !price || !image || !cuisine) {
+      alert("Name, price, cuisine and image are required");
       return;
     }
 
@@ -29,6 +37,7 @@ const AddMenuItem = ({ onItemAdded }: { onItemAdded: () => void }) => {
     formData.append("name", name);
     formData.append("description", description);
     formData.append("price", price);
+    formData.append("cuisine", cuisine);
     formData.append("file", image);
 
     try {
@@ -72,6 +81,20 @@ const AddMenuItem = ({ onItemAdded }: { onItemAdded: () => void }) => {
         onChange={(e) => setPrice(e.target.value)}
         className="w-full rounded-lg border px-4 py-2 text-sm outline-none"
       />
+      <select
+        value={cuisine}
+        onChange={(e) => setCuisine(e.target.value)}
+        className="w-full rounded-lg border px-4 py-2 text-sm outline-none"
+      >
+        <option value="" disabled>
+          Select cuisine
+        </option>
+        {cuisineOptions.map((option) => (
+          <option value={option} key={option}>
+            {option}
+          </option>
+        ))}
+      </select>
 
       <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 text-sm text-gray-600 hover:bg-gray-50">
         <BiUpload className="h-5 w-5 text-red-500" />

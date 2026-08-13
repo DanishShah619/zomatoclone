@@ -13,15 +13,22 @@ interface MenuItemsProps {
   items: IMenuItem[];
   onItemDeleted: () => void;
   isSeller: boolean;
+  cuisineOptions?: string[];
 }
 
 const getDiscountedPrice = (price: number, discountPercent = 0) =>
   Math.max(price - Math.round((price * discountPercent) / 100), 0);
 
-const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
+const MenuItems = ({
+  items,
+  onItemDeleted,
+  isSeller,
+  cuisineOptions = [],
+}: MenuItemsProps) => {
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [offerDrafts, setOfferDrafts] = useState<Record<string, string>>({});
   const [savingOfferId, setSavingOfferId] = useState<string | null>(null);
+  const [savingCuisineId, setSavingCuisineId] = useState<string | null>(null);
   const { fetchCart } = useAppData();
 
   const handleDelete = async (itemId: string) => {
@@ -103,6 +110,29 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
     }
   };
 
+  const saveItemCuisine = async (itemId: string, cuisine: string) => {
+    try {
+      setSavingCuisineId(itemId);
+      const { data } = await axios.put(
+        `${restaurantService}/api/item/cuisine/${itemId}`,
+        { cuisine },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast.success(data.message);
+      onItemDeleted();
+    } catch (error: any) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to update cuisine");
+    } finally {
+      setSavingCuisineId(null);
+    }
+  };
+
   const addToCart = async (restaurantId: string, itemId: string) => {
     try {
       setLoadingItemId(itemId);
@@ -171,6 +201,9 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
             <div className="flex min-w-0 flex-1 flex-col justify-between">
               <div className="min-w-0">
                 <h3 className="truncate font-semibold">{item.name}</h3>
+                <p className="mt-1 text-xs font-semibold text-[#E23744]">
+                  {item.cuisine || "Cuisine pending"}
+                </p>
                 {item.description && (
                   <p className="text-sm text-gray-500 line-clamp-2">
                     {item.description}
@@ -231,6 +264,25 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
 
               {isSeller && (
                 <div className="mt-3 min-w-0 rounded-lg border bg-gray-50 p-2">
+                  {cuisineOptions.length > 0 && (
+                    <div className="mb-2">
+                      <label className="mb-1 block text-xs font-semibold text-gray-500">
+                        Dish cuisine
+                      </label>
+                      <select
+                        value={item.cuisine || cuisineOptions[0]}
+                        disabled={savingCuisineId === item._id}
+                        onChange={(e) => saveItemCuisine(item._id, e.target.value)}
+                        className="w-full rounded border px-2 py-1 text-xs"
+                      >
+                        {cuisineOptions.map((option) => (
+                          <option value={option} key={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
