@@ -14,6 +14,7 @@ const ACTIVE_STATUSES = [
   "rider_assigned",
   "picked_up",
 ];
+const ORDERS_REFRESH_INTERVAL_MS = 10000;
 
 const RestaurantOrders = ({ restaurantId }: { restaurantId: string }) => {
   const [orders, setOrders] = useState<IOrder[]>([]);
@@ -65,6 +66,23 @@ const RestaurantOrders = ({ restaurantId }: { restaurantId: string }) => {
 
   useEffect(() => {
     fetchOrders();
+
+    const intervalId = window.setInterval(() => {
+      fetchOrders();
+    }, ORDERS_REFRESH_INTERVAL_MS);
+
+    const refreshOnFocus = () => {
+      if (!document.hidden) fetchOrders();
+    };
+
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, [restaurantId]);
 
   useEffect(() => {
