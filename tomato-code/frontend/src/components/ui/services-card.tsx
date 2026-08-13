@@ -25,10 +25,11 @@ export function ServiceCards({ items, className }: ServiceCardsProps) {
           type="button"
           onClick={item.onClick}
           className={cn(
-            "group relative flex min-h-[210px] w-full flex-col justify-between overflow-hidden rounded-lg border border-gray-200 bg-gradient-to-br p-6 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#e23744]/30",
+            "group relative flex min-h-[280px] w-full flex-col justify-between overflow-hidden rounded-lg border border-gray-200 bg-gradient-to-br p-7 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#e23744]/30",
             item.gradient
           )}
         >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.82),transparent_26%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
           <div className="flex items-start justify-between">
             <span className="font-mono text-sm font-medium text-gray-400">
               ( {item.number} )
