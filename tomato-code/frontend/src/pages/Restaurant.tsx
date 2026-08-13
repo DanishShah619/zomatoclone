@@ -32,7 +32,15 @@ const Restaurant = () => {
         localStorage.setItem("token", data.token);
         window.location.reload();
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.message === "No Restaurant found"
+      ) {
+        setRestaurant(null);
+        return;
+      }
+
       console.log(error);
     } finally {
       setLoading(false);

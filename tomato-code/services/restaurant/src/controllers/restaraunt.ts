@@ -114,8 +114,9 @@ export const fetchMyRestaurant = TryCatch(
     const restaurant = await Restaurant.findOne({ ownerId: req.user._id });
 
     if (!restaurant) {
-      return res.status(400).json({
-        message: "No Restaurant found",
+      return res.json({
+        restaurant: null,
+        message: "No restaurant found",
       });
     }
 
