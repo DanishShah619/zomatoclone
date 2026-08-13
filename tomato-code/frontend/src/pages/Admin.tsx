@@ -1,5 +1,9 @@
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { BiLogOut } from "react-icons/bi";
+import { useNavigate } from "react-router-dom";
+import { useAppData } from "../context/AppContext";
 import { adminService } from "../main";
 import AdminRestaurantCard from "../components/AdminRestaurantCard";
 import RiderAdmin from "../components/RiderAdmin";
@@ -12,6 +16,16 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<"restaurant" | "rider">("restaurant");
+  const { setIsAuth, setUser } = useAppData();
+  const navigate = useNavigate();
+
+  const logoutHandler = () => {
+    localStorage.setItem("token", "");
+    setUser(null);
+    setIsAuth(false);
+    navigate("/login");
+    toast.success("Logged out successfully");
+  };
 
   const fetchData = useCallback(async (showInitialLoader = false) => {
     try {
@@ -73,9 +87,19 @@ const Admin = () => {
     <div className="mx-auto max-w-6xl px-6 py-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <span className="text-xs font-medium text-gray-400">
-          {refreshing ? "Refreshing..." : "Auto-refreshing"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-400">
+            {refreshing ? "Refreshing..." : "Auto-refreshing"}
+          </span>
+          <button
+            type="button"
+            onClick={logoutHandler}
+            className="flex items-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+          >
+            <BiLogOut size={18} />
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-4">
