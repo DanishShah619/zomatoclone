@@ -130,7 +130,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => {
         const isLoading = loadingItemId === item._id;
         const offerActive = Boolean(
@@ -143,7 +143,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
 
         return (
           <div
-            className={`relative flex gap-4 rounded-lg bg-white p-4 shadow-sm transition ${
+            className={`relative flex min-w-0 flex-col gap-4 rounded-lg bg-white p-4 shadow-sm transition sm:flex-row ${
               !item.isAvailable ? "opacity-70" : ""
             }`}
             key={item._id}
@@ -152,7 +152,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
               <img
                 src={item.image}
                 alt=""
-                className={`h-20 w-20 rounded object-cover ${
+                className={`h-32 w-full rounded object-cover sm:h-20 sm:w-20 ${
                   !item.isAvailable ? "grayscale brightness-75" : ""
                 }`}
               />
@@ -168,9 +168,9 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
               )}
             </div>
 
-            <div className="flex flex-1 flex-col justify-between">
-              <div>
-                <h3 className="font-semibold">{item.name}</h3>
+            <div className="flex min-w-0 flex-1 flex-col justify-between">
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold">{item.name}</h3>
                 {item.description && (
                   <p className="text-sm text-gray-500 line-clamp-2">
                     {item.description}
@@ -178,7 +178,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                 )}
               </div>
 
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3 flex min-w-0 items-center justify-between gap-3">
                 <div>
                   <p className="font-medium">Rs. {discountedPrice}</p>
                   {offerActive && (
@@ -189,7 +189,7 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                 </div>
 
                 {isSeller && (
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       onClick={() => toggleAvailability(item._id)}
                       className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
@@ -230,8 +230,8 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
               </div>
 
               {isSeller && (
-                <div className="mt-3 rounded-lg border bg-gray-50 p-2">
-                  <div className="flex items-center gap-2">
+                <div className="mt-3 min-w-0 rounded-lg border bg-gray-50 p-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
                       min={1}
@@ -243,22 +243,24 @@ const MenuItems = ({ items, onItemDeleted, isSeller }: MenuItemsProps) => {
                           [item._id]: e.target.value,
                         }))
                       }
-                      className="w-16 rounded border px-2 py-1 text-xs"
+                      className="h-8 w-16 rounded border px-2 py-1 text-xs"
                     />
-                    <span className="text-xs text-gray-500">% off</span>
+                    <span className="text-xs leading-4 text-gray-500">
+                      % off
+                    </span>
                     <button
                       onClick={() =>
                         saveItemOffer(item._id, true, Number(draftPercent))
                       }
                       disabled={savingOfferId === item._id}
-                      className="ml-auto rounded bg-[#E23744] px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                      className="h-8 rounded bg-[#E23744] px-3 text-xs font-semibold text-white disabled:opacity-50"
                     >
                       Apply
                     </button>
                     <button
                       onClick={() => saveItemOffer(item._id, false, 0)}
                       disabled={savingOfferId === item._id || !offerActive}
-                      className="rounded border px-2 py-1 text-xs font-semibold text-gray-600 disabled:opacity-50"
+                      className="h-8 rounded border px-3 text-xs font-semibold text-gray-600 disabled:opacity-50"
                     >
                       Off
                     </button>
