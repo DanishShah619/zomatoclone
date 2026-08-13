@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import { restaurantService } from "../main";
 import { BiLoader, BiMapPin, BiSearch, BiUpload } from "react-icons/bi";
+import { LuLocateFixed } from "react-icons/lu";
 import {
   MapContainer,
   Marker,
@@ -23,6 +24,25 @@ L.Icon.Default.mergeOptions({
 interface props {
   fetchMyRestaurant: () => Promise<void>;
 }
+
+const CUISINE_OPTIONS = [
+  "Biryani",
+  "North Indian",
+  "South Indian",
+  "Chinese",
+  "Fast Food",
+  "Pizza",
+  "Burger",
+  "Rolls",
+  "Momos",
+  "Desserts",
+  "Beverages",
+  "Cafe",
+  "Bakery",
+  "Street Food",
+  "Pure Veg",
+  "Mughlai",
+];
 
 const LocationPicker = ({
   setLocation,
@@ -55,11 +75,47 @@ const MapPositionSync = ({
   return null;
 };
 
+const LocateMeButton = ({
+  onLocate,
+}: {
+  onLocate: (lat: number, lng: number) => void;
+}) => {
+  const map = useMap();
+
+  const locateUser = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        map.flyTo([latitude, longitude], 16, { animate: true });
+        onLocate(latitude, longitude);
+      },
+      () => toast.error("Location permission denied")
+    );
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={locateUser}
+      className="absolute right-3 top-3 z-[1000] flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm shadow hover:bg-gray-100"
+    >
+      <LuLocateFixed size={16} />
+      Use current location
+    </button>
+  );
+};
+
 const AddRestaurant = ({ fetchMyRestaurant }: props) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [image, setImage] = useState<File | null>(null);
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [addressInput, setAddressInput] = useState("");
   const [formattedAddress, setFormattedAddress] = useState("");
@@ -168,9 +224,14 @@ const AddRestaurant = ({ fetchMyRestaurant }: props) => {
   };
 
   const handleSubmit = async () => {
+    const cuisineList = Array.from(
+      new Set(cuisines.map((cuisine) => cuisine.trim()).filter(Boolean))
+    );
+
     if (
       !name ||
       !image ||
+      cuisineList.length === 0 ||
       !formattedAddress ||
       resolvingAddress ||
       latitude === null ||
@@ -184,6 +245,7 @@ const AddRestaurant = ({ fetchMyRestaurant }: props) => {
 
     formData.append("name", name);
     formData.append("description", description);
+    formData.append("cuisines", JSON.stringify(cuisineList));
     formData.append("latitude", String(latitude));
     formData.append("longitude", String(longitude));
     formData.append("formattedAddress", formattedAddress);
@@ -218,7 +280,9 @@ const AddRestaurant = ({ fetchMyRestaurant }: props) => {
           className="w-full rounded-lg border px-4 py-2 text-sm outline-none"
         />
         <input
-          type="number"
+          type="tel"
+          inputMode="numeric"
+          pattern="[0-9]*"
           placeholder="Contact Number"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
@@ -230,6 +294,42 @@ const AddRestaurant = ({ fetchMyRestaurant }: props) => {
           onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded-lg border px-4 py-2 text-sm outline-none"
         />
+
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Cuisines offered</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Add the food categories customers should see on your restaurant card.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {CUISINE_OPTIONS.map((cuisine) => {
+              const selected = cuisines.includes(cuisine);
+
+              return (
+                <button
+                  key={cuisine}
+                  type="button"
+                  onClick={() => {
+                    setCuisines((current) =>
+                      selected
+                        ? current.filter((item) => item !== cuisine)
+                        : [...current, cuisine]
+                    );
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    selected
+                      ? "border-[#e23744] bg-[#e23744] text-white shadow-sm"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-[#e23744]/40 hover:bg-red-50"
+                  }`}
+                >
+                  {cuisine}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 text-sm text-gray-600 hover:bg-gray-50">
           <BiUpload className="h-5 w-5 text-red-500" />
@@ -293,6 +393,7 @@ const AddRestaurant = ({ fetchMyRestaurant }: props) => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
               <LocationPicker setLocation={setLocation} />
+              <LocateMeButton onLocate={setLocation} />
               <MapPositionSync latitude={latitude} longitude={longitude} />
               {latitude !== null && longitude !== null && (
                 <Marker position={[latitude, longitude]} />

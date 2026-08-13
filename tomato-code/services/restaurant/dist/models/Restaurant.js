@@ -6,6 +6,13 @@ const schema = new Schema({
         trim: true,
     },
     description: String,
+    cuisines: {
+        type: [String],
+        default: [],
+        set: (values) => values
+            .map((value) => value.trim())
+            .filter(Boolean),
+    },
     image: {
         type: String,
         required: true,
@@ -58,5 +65,6 @@ const schema = new Schema({
 schema.index({ ownerId: 1 }, { unique: true });
 schema.index({ isVerified: 1 });
 schema.index({ "offer.isActive": 1 });
+schema.index({ cuisines: 1 });
 schema.index({ autoLocation: "2dsphere" });
 export default mongoose.model("Restaurant", schema);

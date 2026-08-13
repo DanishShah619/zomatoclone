@@ -96,6 +96,7 @@ const Home = () => {
                 key={res._id}
                 id={res._id}
                 name={res.name}
+                cuisines={res.cuisines}
                 image={res.image ?? ""}
                 distance={`${distance}`}
                 isOpen={res.isOpen}

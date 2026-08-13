@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IRestaurant extends Document {
   name: string;
   description?: string;
+  cuisines: string[];
   image: string;
   ownerId: string;
   phone: number;
@@ -29,6 +30,14 @@ const schema = new Schema<IRestaurant>(
       trim: true,
     },
     description: String,
+    cuisines: {
+      type: [String],
+      default: [],
+      set: (values: string[]) =>
+        values
+          .map((value) => value.trim())
+          .filter(Boolean),
+    },
     image: {
       type: String,
       required: true,
@@ -86,6 +95,7 @@ const schema = new Schema<IRestaurant>(
 schema.index({ ownerId: 1 }, { unique: true });
 schema.index({ isVerified: 1 });
 schema.index({ "offer.isActive": 1 });
+schema.index({ cuisines: 1 });
 schema.index({ autoLocation: "2dsphere" });
 
 export default mongoose.model<IRestaurant>("Restaurant", schema);

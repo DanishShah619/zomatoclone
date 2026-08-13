@@ -4,12 +4,15 @@ type props = {
   id: string;
   image: string;
   name: string;
+  cuisines?: string[];
   distance: string;
   isOpen: boolean;
 };
 
-const RestaurantCard = ({ id, image, name, distance, isOpen }: props) => {
+const RestaurantCard = ({ id, image, name, cuisines = [], distance, isOpen }: props) => {
   const navigate = useNavigate();
+  const cuisineText = cuisines.length > 0 ? cuisines.slice(0, 3).join(", ") : "Cuisine not listed";
+
   return (
     <div
       className={`cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm transition hover:shadow-md ${
@@ -39,6 +42,9 @@ const RestaurantCard = ({ id, image, name, distance, isOpen }: props) => {
         <h3 className="truncate text-base font-semibold text-gray-800">
           {name}
         </h3>
+        <p className="truncate text-sm font-medium text-gray-600">
+          {cuisineText}
+        </p>
         <p className="text-sm text-gray-500">{distance} KM away</p>
       </div>
     </div>

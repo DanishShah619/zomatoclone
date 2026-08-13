@@ -12,10 +12,32 @@ interface props {
   onUpdate: (restaurant: IRestaurant) => void;
 }
 
+const CUISINE_OPTIONS = [
+  "Biryani",
+  "North Indian",
+  "South Indian",
+  "Chinese",
+  "Fast Food",
+  "Pizza",
+  "Burger",
+  "Rolls",
+  "Momos",
+  "Desserts",
+  "Beverages",
+  "Cafe",
+  "Bakery",
+  "Street Food",
+  "Pure Veg",
+  "Mughlai",
+];
+
 const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
   const [editMode, setEditMode] = useState(false);
   const [name, setName] = useState(restaurant.name);
   const [description, setDescription] = useState(restaurant.description);
+  const [cuisines, setCuisines] = useState(
+    restaurant.cuisines && restaurant.cuisines.length > 0 ? restaurant.cuisines : []
+  );
   const [isOpen, setIsOpen] = useState(restaurant.isOpen);
   const [offerActive, setOfferActive] = useState(
     restaurant.offer?.isActive ?? false
@@ -47,11 +69,20 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
   };
 
   const saveChanges = async () => {
+    const cuisineList = Array.from(
+      new Set(cuisines.map((cuisine) => cuisine.trim()).filter(Boolean))
+    );
+
+    if (cuisineList.length === 0) {
+      toast.error("Please add at least one cuisine");
+      return;
+    }
+
     try {
       setLoading(true);
       const { data } = await axios.put(
         `${restaurantService}/api/restaurant/edit`,
-        { name, description },
+        { name, description, cuisines: cuisineList },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -61,6 +92,11 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
 
       toast.success(data.message);
       onUpdate(data.restaurant);
+      setCuisines(
+        data.restaurant.cuisines && data.restaurant.cuisines.length > 0
+          ? data.restaurant.cuisines
+          : [""]
+      );
       setEditMode(false);
     } catch (error) {
       console.log(error);
@@ -160,15 +196,61 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: props) => {
         </div>
 
         {editMode ? (
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
+          <div className="space-y-3">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full rounded border px-3 py-2 text-sm"
+            />
+            <div className="space-y-2 rounded-lg border p-3">
+              <p className="text-sm font-semibold text-gray-800">Cuisines</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {CUISINE_OPTIONS.map((cuisine) => {
+                  const selected = cuisines.includes(cuisine);
+
+                  return (
+                    <button
+                      key={cuisine}
+                      type="button"
+                      onClick={() => {
+                        setCuisines((current) =>
+                          selected
+                            ? current.filter((item) => item !== cuisine)
+                            : [...current, cuisine]
+                        );
+                      }}
+                      className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                        selected
+                          ? "border-[#E23744] bg-[#E23744] text-white"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-[#E23744]/40 hover:bg-red-50"
+                      }`}
+                    >
+                      {cuisine}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
-          <p className="text-sm text-gray-600">
-            {restaurant.description || "No description added"}
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              {restaurant.description || "No description added"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(restaurant.cuisines && restaurant.cuisines.length > 0
+                ? restaurant.cuisines
+                : ["Cuisine not listed"]
+              ).map((cuisine) => (
+                <span
+                  key={cuisine}
+                  className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-[#E23744]"
+                >
+                  {cuisine}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="flex items-center justify-between pt-3 border-t">

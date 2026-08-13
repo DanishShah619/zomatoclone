@@ -41,6 +41,7 @@ export interface IRestaurant {
   _id: string;
   name: string;
   description?: string;
+  cuisines?: string[];
   image: string;
   ownerId: string;
   phone: number;

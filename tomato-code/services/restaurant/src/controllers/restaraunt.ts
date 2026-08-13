@@ -10,6 +10,24 @@ import MenuItems from "../models/MenuItems.js";
 const MAX_NEARBY_RADIUS_METERS = 20000;
 const MAX_SEARCH_LENGTH = 64;
 const MAX_NEARBY_RESULTS = 50;
+const CUISINE_OPTIONS = [
+  "Biryani",
+  "North Indian",
+  "South Indian",
+  "Chinese",
+  "Fast Food",
+  "Pizza",
+  "Burger",
+  "Rolls",
+  "Momos",
+  "Desserts",
+  "Beverages",
+  "Cafe",
+  "Bakery",
+  "Street Food",
+  "Pure Veg",
+  "Mughlai",
+];
 
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -18,6 +36,35 @@ const parseDiscountPercent = (value: unknown) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 90) return null;
   return Math.round(parsed);
+};
+
+const parseCuisines = (value: unknown) => {
+  let rawValues: unknown = [];
+
+  if (Array.isArray(value)) {
+    rawValues = value;
+  } else if (typeof value === "string") {
+    if (value.trim().startsWith("[")) {
+      try {
+        rawValues = JSON.parse(value);
+      } catch {
+        rawValues = [];
+      }
+    } else {
+      rawValues = value.split(",");
+    }
+  }
+
+  if (!Array.isArray(rawValues)) return [];
+
+  return Array.from(
+    new Set(
+      rawValues
+        .map((item) => String(item).trim())
+        .filter((item) => CUISINE_OPTIONS.includes(item))
+        .slice(0, 12)
+    )
+  );
 };
 
 export const addRestraunt = TryCatch(async (req: AuthenticatedRequest, res) => {
@@ -39,14 +86,16 @@ export const addRestraunt = TryCatch(async (req: AuthenticatedRequest, res) => {
     });
   }
 
-  const { name, description, latitude, longitude, formattedAddress, phone } =
+  const { name, description, latitude, longitude, formattedAddress, phone, cuisines } =
     req.body;
   const numericLatitude = Number(latitude);
   const numericLongitude = Number(longitude);
   const numericPhone = Number(phone);
+  const parsedCuisines = parseCuisines(cuisines);
 
   if (
     !name ||
+    parsedCuisines.length === 0 ||
     !Number.isFinite(numericLatitude) ||
     !Number.isFinite(numericLongitude) ||
     !Number.isFinite(numericPhone)
@@ -87,6 +136,7 @@ export const addRestraunt = TryCatch(async (req: AuthenticatedRequest, res) => {
   const restaurant = await Restaurant.create({
     name,
     description,
+    cuisines: parsedCuisines,
     phone: numericPhone,
     image: uploadResult.url,
     ownerId: user._id,
@@ -187,7 +237,7 @@ export const updateRestaurant = TryCatch(
       });
     }
 
-    const { name, description } = req.body;
+    const { name, description, cuisines } = req.body;
 
     if (name !== undefined && typeof name !== "string") {
       return res.status(400).json({
@@ -201,9 +251,29 @@ export const updateRestaurant = TryCatch(
       });
     }
 
+    const update: {
+      name?: string;
+      description?: string;
+      cuisines?: string[];
+    } = {};
+
+    if (name !== undefined) update.name = name;
+    if (description !== undefined) update.description = description;
+    if (cuisines !== undefined) {
+      const parsedCuisines = parseCuisines(cuisines);
+
+      if (parsedCuisines.length === 0) {
+        return res.status(400).json({
+          message: "Please add at least one cuisine",
+        });
+      }
+
+      update.cuisines = parsedCuisines;
+    }
+
     const restaurant = await Restaurant.findOneAndUpdate(
       { ownerId: req.user._id },
-      { name: name, description: description },
+      update,
       { new: true }
     );
 
@@ -314,7 +384,10 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
     const normalizedSearch = search.trim().slice(0, MAX_SEARCH_LENGTH);
 
     if (normalizedSearch) {
-      query.name = { $regex: escapeRegex(normalizedSearch), $options: "i" };
+      query.$or = [
+        { name: { $regex: escapeRegex(normalizedSearch), $options: "i" } },
+        { cuisines: { $regex: escapeRegex(normalizedSearch), $options: "i" } },
+      ];
     }
   }
 
