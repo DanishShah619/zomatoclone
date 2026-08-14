@@ -5,7 +5,7 @@ type props = {
   image: string;
   name: string;
   cuisines?: string[];
-  distance: string;
+  distance?: string;
   isOpen: boolean;
 };
 
@@ -45,7 +45,9 @@ const RestaurantCard = ({ id, image, name, cuisines = [], distance, isOpen }: pr
         <p className="truncate text-sm font-medium text-gray-600">
           {cuisineText}
         </p>
-        <p className="text-sm text-gray-500">{distance} KM away</p>
+        {distance !== undefined && (
+          <p className="text-sm text-gray-500">{distance} KM away</p>
+        )}
       </div>
     </div>
   );

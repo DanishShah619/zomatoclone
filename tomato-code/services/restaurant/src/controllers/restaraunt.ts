@@ -339,40 +339,13 @@ export const updateRestaurantOffer = TryCatch(
 );
 
 export const getNearbyRestaurant = TryCatch(async (req, res) => {
-  const { latitude, longitude, radius = 5000, search = "", limit = 25 } = req.query;
+  const { latitude, longitude, search = "", limit = 25 } = req.query;
 
-  if (!latitude || !longitude) {
-    return res.status(400).json({
-      message: "Latitude and longitude are required",
-    });
-  }
-
-  const numericLatitude = Number(latitude);
-  const numericLongitude = Number(longitude);
-  const numericRadius = Number(radius);
   const numericLimit = Number(limit);
 
-  if (
-    !Number.isFinite(numericLatitude) ||
-    !Number.isFinite(numericLongitude) ||
-    !Number.isFinite(numericRadius) ||
-    !Number.isFinite(numericLimit) ||
-    numericRadius <= 0 ||
-    numericLimit <= 0
-  ) {
+  if (!Number.isFinite(numericLimit) || numericLimit <= 0) {
     return res.status(400).json({
-      message: "Valid latitude, longitude and radius are required",
-    });
-  }
-
-  if (
-    numericLatitude < -90 ||
-    numericLatitude > 90 ||
-    numericLongitude < -180 ||
-    numericLongitude > 180
-  ) {
-    return res.status(400).json({
-      message: "Latitude or longitude is out of range",
+      message: "Valid limit is required",
     });
   }
 
@@ -391,39 +364,60 @@ export const getNearbyRestaurant = TryCatch(async (req, res) => {
     }
   }
 
-  const safeRadius = Math.min(numericRadius, MAX_NEARBY_RADIUS_METERS);
   const safeLimit = Math.min(Math.trunc(numericLimit), MAX_NEARBY_RESULTS);
 
-  const restaurants = await Restaurant.aggregate([
-    {
-      $geoNear: {
-        near: {
-          type: "Point",
-          coordinates: [numericLongitude, numericLatitude],
+  const numericLatitude = Number(latitude);
+  const numericLongitude = Number(longitude);
+  const hasLocation =
+    latitude &&
+    longitude &&
+    Number.isFinite(numericLatitude) &&
+    Number.isFinite(numericLongitude) &&
+    numericLatitude >= -90 &&
+    numericLatitude <= 90 &&
+    numericLongitude >= -180 &&
+    numericLongitude <= 180;
+
+  let restaurants;
+
+  if (hasLocation) {
+    // Location provided — sort by distance (no radius cap, show all)
+    restaurants = await Restaurant.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [numericLongitude, numericLatitude],
+          },
+          distanceField: "distance",
+          spherical: true,
+          query,
         },
-        distanceField: "distance",
-        maxDistance: safeRadius,
-        spherical: true,
-        query,
       },
-    },
-    {
-      $sort: {
-        isOpen: -1,
-        distance: 1,
-      },
-    },
-    {
-      $addFields: {
-        distanceKm: {
-          $round: [{ $divide: ["$distance", 1000] }, 2],
+      {
+        $sort: {
+          isOpen: -1,
+          distance: 1,
         },
       },
-    },
-    {
-      $limit: MAX_NEARBY_RESULTS,
-    },
-  ]);
+      {
+        $addFields: {
+          distanceKm: {
+            $round: [{ $divide: ["$distance", 1000] }, 2],
+          },
+        },
+      },
+      {
+        $limit: safeLimit,
+      },
+    ]);
+  } else {
+    // No location — return all verified restaurants sorted by open status then name
+    restaurants = await Restaurant.find(query)
+      .sort({ isOpen: -1, name: 1 })
+      .limit(safeLimit)
+      .lean();
+  }
 
   res.json({
     success: true,

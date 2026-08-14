@@ -41,23 +41,20 @@ const Home = () => {
   };
 
   const fetchRestaurants = async (showLoader = false) => {
-    if (!location?.latitude || !location?.longitude) {
-      setLoading(false);
-      return;
-    }
-
     try {
       if (showLoader) setLoading(true);
       else setRefreshing(true);
 
+      const params: Record<string, string> = { search };
+      if (location?.latitude && location?.longitude) {
+        params.latitude = String(location.latitude);
+        params.longitude = String(location.longitude);
+      }
+
       const { data } = await axios.get(
         `${restaurantService}/api/restaurant/all`,
         {
-          params: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            search,
-          },
+          params,
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -94,13 +91,14 @@ const Home = () => {
     };
   }, [location, search]);
 
-  if (loading || !location) {
+  if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <p className="text-gray-500">Finding restaurants near you...</p>
+        <p className="text-gray-500">Loading restaurants...</p>
       </div>
     );
   }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <CurrentOrderBanner />
@@ -112,14 +110,17 @@ const Home = () => {
       {restaurants.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {restaurants.map((res) => {
-            const [resLng, resLat] = res.autoLocation.coordinates;
+            let distance: string | undefined;
 
-            const distance = getDistanceKm(
-              location.latitude,
-              location.longitude,
-              resLat,
-              resLng
-            );
+            if (location?.latitude && location?.longitude) {
+              const [resLng, resLat] = res.autoLocation.coordinates;
+              distance = `${getDistanceKm(
+                location.latitude,
+                location.longitude,
+                resLat,
+                resLng
+              )}`;
+            }
 
             return (
               <RestaurantCard
@@ -128,7 +129,7 @@ const Home = () => {
                 name={res.name}
                 cuisines={res.cuisines}
                 image={res.image ?? ""}
-                distance={`${distance}`}
+                distance={distance}
                 isOpen={res.isOpen}
               />
             );
